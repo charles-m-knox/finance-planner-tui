@@ -1,18 +1,15 @@
 package main
 
 import (
-	"bufio"
+	"crypto/md5"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	c "finance-planner-tui/constants"
@@ -20,15 +17,10 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/gdamore/tcell/v2"
-	"github.com/google/uuid"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 	"gopkg.in/yaml.v3"
 )
-
-func tmp() {
-	log.Println(lib.IsWeekday("Monday"))
-}
 
 const (
 	// old
@@ -40,11 +32,14 @@ const (
 	// new
 	PAGE_PROFILES = "Profiles"
 	PAGE_RESULTS  = "Results"
+	PAGE_HELP     = "Help"
+
+	UNDO_BUFFER_MAX_LEN = 1000
 )
 
 var (
-	// finance planner things
 	app                         *tview.Application
+	layout                      *tview.Flex
 	config                      Config
 	selectedProfile             *Profile
 	pages                       *tview.Pages
@@ -52,8 +47,8 @@ var (
 	profilesPage                *tview.Flex
 	transactionsPage            *tview.Flex
 	resultsPage                 *tview.Flex
-	billEditorPage              *tview.Flex
 	transactionsTableSortColumn string
+	lastSelectedIndex           int
 	// the previously focused primitive
 	previous tview.Primitive
 	// profilesPage items:
@@ -61,38 +56,39 @@ var (
 	statusText             *tview.TextView
 	transactionsTable      *tview.Table
 	transactionsInputField *tview.InputField
+	// results items:
+	resultsTable          *tview.Table
+	resultsForm           *tview.Form
+	resultsDescription    *tview.TextView
+	resultsRightSide      *tview.Flex
+	latestResults         *[]lib.Result
+	resultsFormStartYear  string
+	resultsFormStartMonth string
+	resultsFormStartDay   string
+	resultsFormEndYear    string
+	resultsFormEndMonth   string
+	resultsFormEndDay     string
+	resultsFormAmount     int
+	// help page
+	helpModal      *tview.TextView
+	bottomHelpText *tview.TextView
 
-	// old things that need to be removed
-	lastCmd                *Command
-	list                   *tview.List
-	layout                 *tview.Flex
-	info                   *tview.TextView
-	errors                 *tview.TextView
-	exitCode               *tview.TextView
-	bottomLeftText         *tview.TextView
-	bottomLeftSearch       *tview.InputField
-	bottomLeftBox          *tview.Box
-	globalProcessesRunning int
-	stdoutLines            []string
-	stderrLines            []string
-	runIndex               sync.Map
-	isSearching            bool
-	searchTerm             string
-	keybindings            []Keybinding
-	filteredResults        []string
+	undoBuffer    [][]byte
+	undoBufferPos int
 )
 
 type Profile struct {
-	TX       []lib.TX `yaml:"transactions"`
-	Name     string   `yaml:"name"`
-	modified bool
+	TX             []lib.TX `yaml:"transactions"`
+	Name           string   `yaml:"name"`
+	modified       bool
+	SelectedRow    int `yaml:"selectedRow"`
+	SelectedColumn int `yaml:"selectedColumn"`
 }
 
 type Config struct {
-	Commands                    []ConfigCommand `yaml:"commands"`
-	Keybindings                 []Keybinding    `yaml:"keybindings"`
-	IdleRefreshRateMs           int             `yaml:"idleRefreshRateMs"`
-	ProcessRunningRefreshRateMs int             `yaml:"processRunningRefreshRateMs"`
+	Keybindings                 []Keybinding `yaml:"keybindings"`
+	IdleRefreshRateMs           int          `yaml:"idleRefreshRateMs"`
+	ProcessRunningRefreshRateMs int          `yaml:"processRunningRefreshRateMs"`
 
 	Profiles []Profile `yaml:"profiles"`
 }
@@ -100,6 +96,40 @@ type Config struct {
 type Keybinding struct {
 	Action     string
 	Keybinding string
+}
+
+func getHelpModal() {
+	helpModal = tview.NewTextView()
+	helpModal.SetBorder(true)
+	helpModal.SetText(c.HelpText).SetDynamicColors(true)
+}
+
+func setBottomHelpText() {
+	p, _ := pages.GetFrontPage()
+
+	var sb strings.Builder
+
+	if p == PAGE_HELP {
+		sb.WriteString("[blue][F1[] help ")
+	} else {
+		sb.WriteString("[white][F1[][gray] help ")
+	}
+
+	if p == PAGE_PROFILES {
+		sb.WriteString("[blue][F2[] profiles & transactions ")
+	} else {
+		sb.WriteString("[white][F2[][gray] profiles & transactions ")
+	}
+
+	if p == PAGE_RESULTS {
+		sb.WriteString("[blue][F3[] results ")
+	} else {
+		sb.WriteString("[white][F3[][gray] result")
+	}
+
+	bottomHelpText.SetText(sb.String())
+
+	// return "[white][F3][gray] results [white][ctrl+s][gray] save"
 }
 
 func loadConfig() (c Config, err error) {
@@ -156,216 +186,8 @@ func loadConfig() (c Config, err error) {
 	)
 }
 
-func logOutput(output io.ReadCloser, lines *[]string, prefix string, view *tview.TextView, color tcell.Color) {
-	*lines = []string{}
-	scanner := bufio.NewScanner(output)
-	for scanner.Scan() {
-		line := scanner.Text()
-		*lines = append(*lines, line)
-		var sb strings.Builder
-		linesLen := len(*lines)
-		for i := linesLen - 1; i >= linesLen-maxLogLines && i >= 0; i-- {
-			fmt.Fprintf(&sb, "%v%v:[%v] %v\n", prefix, getNowStr(), color, (*lines)[i])
-		}
-		view.SetText(sb.String())
-		app.QueueUpdateDraw(func() {})
-		// log.Print(line)
-	}
-}
-
 func getNowStr() string {
 	return time.Now().Format("15:04:05")
-}
-
-func setLastCommandText(cmd *Command) {
-	lastCmd = cmd
-	exitCode.SetTitle(fmt.Sprintf("exit code for: %v", cmd.Label))
-}
-
-func setBottomLeftText(t string) {
-	bottomLeftText.SetText(fmt.Sprintf("[white][ctrl+c][gray] to quit | %v", t))
-}
-
-func pidRunningDrawLoop() {
-	for {
-		// setStatusText(fmt.Sprintf("%v loops", loops))
-		sleepTime := time.Duration(config.IdleRefreshRateMs) * time.Millisecond
-
-		processesRunning := 0
-		keysToDelete := []int64{}
-		shouldRedrawApp := false
-		runIndex.Range(func(key, value any) bool {
-			if value == true {
-				if app != nil {
-					shouldRedrawApp = true
-				}
-
-				processesRunning += 1
-				errors.ScrollToEnd()
-				info.ScrollToEnd()
-			} else {
-				keysToDelete = append(keysToDelete, key.(int64))
-			}
-
-			return true
-		})
-
-		// last process finished running; do a one-time update on the status bar
-		if processesRunning == 0 && globalProcessesRunning > 0 {
-			globalProcessesRunning = 0
-			setBottomLeftText(fmt.Sprintf("%v running", globalProcessesRunning))
-			app.QueueUpdateDraw(func() {})
-		}
-
-		// sync up with the global counter
-		globalProcessesRunning = processesRunning
-		if globalProcessesRunning > 0 {
-			setBottomLeftText(fmt.Sprintf("%v running", globalProcessesRunning))
-			app.QueueUpdateDraw(func() {})
-		}
-
-		if shouldRedrawApp {
-			// draw a little faster if we know something is running
-			sleepTime = time.Duration(config.ProcessRunningRefreshRateMs) * time.Millisecond
-			setBottomLeftText(fmt.Sprintf("%v running", globalProcessesRunning))
-			app.QueueUpdateDraw(func() {})
-		}
-
-		for key := range keysToDelete {
-			keyToDelete := key
-			runIndex.Delete(keyToDelete)
-		}
-
-		time.Sleep(sleepTime)
-	}
-}
-
-func runCommand(command *Command /* command string, args []string, env []string */) {
-	jobId := time.Now().UnixNano()
-	runIndex.Store(jobId, true)
-
-	setLastCommandText(command)
-	exitCode.SetText(fmt.Sprintf("[gray]%v [aqua] running command:[white] %v", getNowStr(), command.Label))
-
-	info.Clear()
-	errors.Clear()
-
-	cmd := exec.Command(command.Command, command.Args...)
-	cmd.Env = append(cmd.Env, command.Env...)
-
-	cmd.Stdout = info
-	cmd.Stderr = errors
-	// Run the command
-	err := cmd.Run()
-	if err != nil {
-		runIndex.Store(jobId, false)
-		errors.SetText(fmt.Sprintf("error running command: %v", err.Error()))
-		exitCode.SetText(fmt.Sprintf("[red] Exit code: %v", cmd.ProcessState.ExitCode()))
-		app.QueueUpdateDraw(func() {})
-		return
-	}
-	runIndex.Store(jobId, false)
-
-	exitCode.SetText(fmt.Sprintf("[green] Exit code: %v", cmd.ProcessState.ExitCode()))
-	app.QueueUpdateDraw(func() {})
-}
-
-func FuzzyFind(input string, commands []Command) []string {
-	commandList := []string{}
-	for _, c := range commands {
-		commandList = append(commandList, c.Label)
-	}
-	return fuzzy.Find(input, commandList)
-}
-
-type Command struct {
-	Color   tcell.Color
-	Label   string
-	Command string
-	Args    []string
-	Env     []string
-}
-
-type ConfigCommand struct {
-	Label   string   `yaml:"label"`
-	Command string   `yaml:"command"`
-	Shell   string   `yaml:"shell"`
-	Args    string   `yaml:"args"`
-	Env     []string `yaml:"env"`
-}
-
-func getFilteredList(l *tview.List, commands []Command, filterString string) {
-	if l != nil {
-		l.Clear()
-	}
-
-	filteredCommands := FuzzyFind(filterString, commands)
-
-	filteredResults = []string{}
-
-	for i := range commands {
-		c := &(commands[i])
-		matchedMarker := ""
-		if !slices.Contains(filteredCommands, c.Label) {
-			continue
-		}
-
-		l.AddItem(fmt.Sprintf("%v%v", (*c).Label, matchedMarker), "", 0, func() { go runCommand(c) }).ShowSecondaryText(false) // .SetMainTextColor(c.Color)
-		filteredResults = append(filteredResults, (*c).Label)
-	}
-
-	l.SetBorder(true)
-}
-
-// func getLayout(commands []Command) {
-// 	getFilteredList(list, commands, searchTerm)
-
-// 	info = tview.NewTextView().SetTextAlign(tview.AlignLeft).SetText("").SetDynamicColors(true)
-// 	errors = tview.NewTextView().SetTextAlign(tview.AlignLeft).SetText("").SetDynamicColors(true)
-// 	exitCode = tview.NewTextView().SetTextAlign(tview.AlignLeft).SetText("").SetDynamicColors(true)
-// 	bottomLeftText = tview.NewTextView().SetTextAlign(tview.AlignLeft).SetDynamicColors(true)
-// 	bottomLeftSearch = tview.NewInputField()
-
-// 	setBottomLeftText("0 processes running")
-
-// 	info.SetBorder(true).SetTitle("stdout")
-// 	errors.SetBorder(true).SetTitle("stderr")
-// 	exitCode.SetBorder(true).SetTitle("exit code")
-// 	bottomLeftText.SetBorder(true)
-// 	bottomLeftSearch.SetBorder(true)
-// 	bottomLeftSearch.SetDisabled(true)
-
-// 	logViews := tview.NewFlex().SetDirection(tview.FlexRow).
-// 		AddItem(info, 0, 5, false).
-// 		AddItem(errors, 0, 5, false)
-// 		// AddItem(exitCode, 0, 1, false)
-
-// 	mainColumns := tview.NewFlex().
-// 		SetDirection(tview.FlexColumn).
-// 		AddItem(list, 0, 1, true).
-// 		AddItem(logViews, 0, 2, false)
-
-// 	bottomRow := tview.NewFlex().SetDirection(tview.FlexColumn)
-
-// 	bottomLeftFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-// 		AddItem(bottomLeftText, 0, 1, false).
-// 		AddItem(bottomLeftSearch, 0, 1, false)
-
-// 	bottomRow.AddItem(bottomLeftFlex, 0, 2, false).
-// 		AddItem(exitCode, 0, 1, false)
-
-// 	layout = tview.NewFlex().
-// 		SetDirection(tview.FlexRow).
-// 		AddItem(mainColumns, 0, 1, false).
-// 		AddItem(bottomRow, 3, 0, false)
-// }
-
-func endSearch(msg string) {
-	isSearching = false
-	searchTerm = ""
-	bottomLeftSearch.SetDisabled(true)
-	app.SetFocus(list)
-	setBottomLeftText(msg)
 }
 
 func populateProfilesPage(doProfile, doBills bool) {
@@ -380,10 +202,15 @@ func populateProfilesPage(doProfile, doBills bool) {
 	for i := range config.Profiles {
 		profile := &(config.Profiles[i])
 		if doProfile {
-			profileList.AddItem(fmt.Sprintf("[blue]%v", profile.Name), "", 0, func() {
+			profileText := fmt.Sprintf("[blue]%v", profile.Name)
+			if selectedProfile != nil && selectedProfile.Name == profile.Name {
+				profileText = fmt.Sprintf("[white]*%v", profile.Name)
+			}
+			profileList.AddItem(profileText, "", 0, func() {
 				selectedProfile = profile
-				populateProfilesPage(false, true)
+				populateProfilesPage(true, true)
 				getTransactionsTable()
+				app.SetFocus(transactionsTable)
 			})
 		}
 
@@ -413,6 +240,10 @@ func populateProfilesPage(doProfile, doBills bool) {
 
 func getTransactionsTable() {
 	transactionsTable.Clear()
+
+	lastSelectedColor := tcell.NewRGBColor(30, 30, 30)
+	selectedAndLastSelectedColor := tcell.NewRGBColor(70, 70, 70)
+	selectedColor := tcell.NewRGBColor(50, 50, 50)
 
 	// determine the current sort
 	// currentSort := strings.TrimSuffix(strings.TrimSuffix(transactionsTableSortColumn, c.Asc), c.Desc)
@@ -726,26 +557,68 @@ func getTransactionsTable() {
 			cellName.SetExpansion(1)
 			cellNote.SetExpansion(1)
 
-			if tx.Selected {
-				cellOrder.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellAmount.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellActive.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellName.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellFrequency.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellInterval.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellMonday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellTuesday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellWednesday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellThursday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellFriday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellSaturday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellSunday.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellStarts.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellEnds.SetBackgroundColor(tcell.ColorDarkBlue)
-				cellNote.SetBackgroundColor(tcell.ColorDarkBlue)
-				// cellID.SetBackgroundColor(tcell.ColorDarkBlue)
-				// cellCreatedAt.SetBackgroundColor(tcell.ColorDarkBlue)
-				// cellUpdatedAt.SetBackgroundColor(tcell.ColorDarkBlue)
+			if lastSelectedIndex == i {
+				if tx.Selected {
+					cellOrder.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellAmount.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellActive.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellName.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellFrequency.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellInterval.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellMonday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellTuesday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellWednesday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellThursday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellFriday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellSaturday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellSunday.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellStarts.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellEnds.SetBackgroundColor(selectedAndLastSelectedColor)
+					cellNote.SetBackgroundColor(selectedAndLastSelectedColor)
+					// cellID.SetBackgroundColor(selectedAndLastSelectedColor)
+					// cellCreatedAt.SetBackgroundColor(selectedAndLastSelectedColor)
+					// cellUpdatedAt.SetBackgroundColor(selectedAndLastSelectedColor)
+				} else {
+					cellOrder.SetBackgroundColor(lastSelectedColor)
+					cellAmount.SetBackgroundColor(lastSelectedColor)
+					cellActive.SetBackgroundColor(lastSelectedColor)
+					cellName.SetBackgroundColor(lastSelectedColor)
+					cellFrequency.SetBackgroundColor(lastSelectedColor)
+					cellInterval.SetBackgroundColor(lastSelectedColor)
+					cellMonday.SetBackgroundColor(lastSelectedColor)
+					cellTuesday.SetBackgroundColor(lastSelectedColor)
+					cellWednesday.SetBackgroundColor(lastSelectedColor)
+					cellThursday.SetBackgroundColor(lastSelectedColor)
+					cellFriday.SetBackgroundColor(lastSelectedColor)
+					cellSaturday.SetBackgroundColor(lastSelectedColor)
+					cellSunday.SetBackgroundColor(lastSelectedColor)
+					cellStarts.SetBackgroundColor(lastSelectedColor)
+					cellEnds.SetBackgroundColor(lastSelectedColor)
+					cellNote.SetBackgroundColor(lastSelectedColor)
+					// cellID.SetBackgroundColor(lastSelectedColor)
+					// cellCreatedAt.SetBackgroundColor(lastSelectedColor)
+					// cellUpdatedAt.SetBackgroundColor(lastSelectedColor)
+				}
+			} else if tx.Selected {
+				cellOrder.SetBackgroundColor(selectedColor)
+				cellAmount.SetBackgroundColor(selectedColor)
+				cellActive.SetBackgroundColor(selectedColor)
+				cellName.SetBackgroundColor(selectedColor)
+				cellFrequency.SetBackgroundColor(selectedColor)
+				cellInterval.SetBackgroundColor(selectedColor)
+				cellMonday.SetBackgroundColor(selectedColor)
+				cellTuesday.SetBackgroundColor(selectedColor)
+				cellWednesday.SetBackgroundColor(selectedColor)
+				cellThursday.SetBackgroundColor(selectedColor)
+				cellFriday.SetBackgroundColor(selectedColor)
+				cellSaturday.SetBackgroundColor(selectedColor)
+				cellSunday.SetBackgroundColor(selectedColor)
+				cellStarts.SetBackgroundColor(selectedColor)
+				cellEnds.SetBackgroundColor(selectedColor)
+				cellNote.SetBackgroundColor(selectedColor)
+				// cellID.SetBackgroundColor(selectedColor)
+				// cellCreatedAt.SetBackgroundColor(selectedColor)
+				// cellUpdatedAt.SetBackgroundColor(selectedColor)
 			}
 
 			transactionsTable.SetCell(i+1, 0, cellOrder)
@@ -855,7 +728,11 @@ func getTransactionsTable() {
 						deactivateTransactionsInputField()
 					}
 				})
-				activateTransactionsInputField("amount (start with + or $+ for positive):", lib.FormatAsCurrency(selectedProfile.TX[i].Amount))
+				renderedAmount := lib.FormatAsCurrency(selectedProfile.TX[i].Amount)
+				if selectedProfile.TX[i].Amount >= 0 {
+					renderedAmount = fmt.Sprintf("+%v", renderedAmount)
+				}
+				activateTransactionsInputField("amount (start with + or $+ for positive):", renderedAmount)
 			case c.COLUMN_ACTIVE:
 				if row == 0 {
 					setTransactionsTableSort(c.ColumnActive)
@@ -1548,11 +1425,130 @@ func setStatusNoChanges() {
 	statusText.SetText("[gray] no changes")
 }
 
+// sets the selectedProfile & config to the value specified by the current undo
+// buffer
+//
+// warning: naively assumes that the undoBufferPos has already been set to a
+// valid value and updates the currently selected config & profile accordingly
+func pushUndoBufferChange() {
+	n := selectedProfile.Name
+
+	err := yaml.Unmarshal(undoBuffer[undoBufferPos], &config)
+	if err != nil {
+		statusText.SetText("[red]config unmarshal failure")
+	}
+
+	// set the selectedProfile to the latest undoBuffer's config
+	for i := range config.Profiles {
+		if config.Profiles[i].Name == n {
+			selectedProfile = &(config.Profiles[i])
+		}
+	}
+}
+
+// moves 1 step backward in the undoBuffer
+func undo() {
+	undoBufferLen := len(undoBuffer)
+	newUndoBufferPos := undoBufferPos - 1
+	if newUndoBufferPos < 0 {
+		// nothing to undo - at beginning of undoBuffer
+		statusText.SetText(fmt.Sprintf("[gray] nothing to undo [%v/%v]", undoBufferPos+1, undoBufferLen))
+		return
+	}
+
+	undoBufferPos = newUndoBufferPos
+
+	pushUndoBufferChange()
+
+	statusText.SetText(fmt.Sprintf("[gray] undo: %v/%v", undoBufferPos+1, undoBufferLen))
+
+	populateProfilesPage(true, true)
+	getTransactionsTable()
+	transactionsTable.Select(selectedProfile.SelectedRow, selectedProfile.SelectedColumn)
+	app.SetFocus(transactionsTable)
+}
+
+// moves 1 step forward in the undoBuffer
+func redo() {
+	undoBufferLen := len(undoBuffer)
+	undoBufferLastPos := undoBufferLen - 1
+	newUndoBufferPos := undoBufferPos + 1
+	if newUndoBufferPos > undoBufferLastPos {
+		// nothing to redo - at end of undoBuffer
+		statusText.SetText(fmt.Sprintf("[gray] nothing to redo [%v/%v]", undoBufferPos+1, undoBufferLen))
+		return
+	}
+
+	undoBufferPos = newUndoBufferPos
+
+	pushUndoBufferChange()
+
+	statusText.SetText(fmt.Sprintf("[gray] redo: [%v/%v]", undoBufferPos+1, undoBufferLen))
+
+	populateProfilesPage(true, true)
+	getTransactionsTable()
+	transactionsTable.Select(selectedProfile.SelectedRow, selectedProfile.SelectedColumn)
+	app.SetFocus(transactionsTable)
+}
+
+// attempts to place the current config at undoBuffer[undoBufferPos+1]
+// but only if there were actual changes.
+//
+// also updates the status text accordingly
 func modified() {
 	if selectedProfile != nil {
 		selectedProfile.modified = true
-		// transactionsTable.SetTitle("Transactions*")
-		statusText.SetText("[white] [ctrl+s] to save")
+		cr, cc := transactionsTable.GetSelection()
+		selectedProfile.SelectedColumn = cc
+		selectedProfile.SelectedRow = cr
+
+		// marshal to detect differences between this config and the latest
+		// config in the undo buffer
+		if len(undoBuffer) >= 1 {
+			b, err := yaml.Marshal(config)
+			if err != nil {
+				statusText.SetText("[yellow] failed to marshal config")
+			}
+
+			// TODO: it's probably not necessary to render these as strings for
+			// the comparison
+			mb := fmt.Sprintf("%x", md5.Sum(b))
+			mo := fmt.Sprintf("%x", md5.Sum(undoBuffer[undoBufferPos]))
+
+			if mb == mo {
+				// no difference between this config and previous one
+				statusText.SetText(fmt.Sprintf("[gray] no change [%v/%v]", undoBufferPos+1, len(undoBuffer)))
+				// setStatusNoChanges()
+				return
+			}
+		}
+
+		// if the undoBufferPos is not at the end of the undoBuffer, then all
+		// values after undoBufferPos need to be deleted
+		if undoBufferPos != len(undoBuffer)-1 {
+			undoBuffer = slices.Delete(undoBuffer, undoBufferPos, len(undoBuffer))
+		}
+
+		// now that we've ensured that we are actually at the end of the buffer,
+		// proceed to insert this config into the undoBuffer
+		b, err := yaml.Marshal(config)
+		if err != nil {
+			statusText.SetText("[red] cannot marshal config")
+		}
+
+		undoBuffer = append(undoBuffer, b)
+		undoBufferPos = len(undoBuffer) - 1
+
+		pushUndoBufferChange()
+		// // set the selectedProfile to the latest undoBuffer's config
+		// n := selectedProfile.Name
+		// for i := range undoBuffer[undoBufferPos].Profiles {
+		// 	if undoBuffer[undoBufferPos].Profiles[i].Name == n {
+		// 		selectedProfile = &(undoBuffer[undoBufferPos].Profiles[i])
+		// 	}
+		// }
+
+		statusText.SetText(fmt.Sprintf("[white] [ctrl+s]=save [gray][%v/%v]", undoBufferPos+1, len(undoBuffer)))
 	}
 }
 
@@ -1589,6 +1585,7 @@ func getProfilesFlex() {
 		AddItem(transactionsInputField, 3, 0, false)
 
 	populateProfilesPage(true, true)
+	getTransactionsTable()
 
 	profilesPage = tview.NewFlex().SetDirection(tview.FlexColumn)
 	profilesPage.AddItem(profilesLeftSide, 0, 1, true).
@@ -1600,8 +1597,188 @@ func setTransactionsTableSort(column string) {
 	defer getTransactionsTable()
 }
 
+func getResultsFlex() {
+	resultsTable = tview.NewTable().SetFixed(1, 1)
+	resultsTable.SetBorder(true)
+	resultsDescription = tview.NewTextView()
+	resultsDescription.SetBorder(true)
+	resultsDescription.SetDynamicColors(true)
+
+	resultsForm = tview.NewForm().
+		AddInputField("Start Year:", resultsFormStartYear, 0, func(textToCheck string, lastChar rune) bool {
+			i, err := strconv.ParseInt(textToCheck, 10, 64)
+			if err != nil || i < 0 {
+				return false
+			}
+			return true
+		}, func(text string) { resultsFormStartYear = text }).
+		AddInputField("Start Month:", resultsFormStartMonth, 0, func(textToCheck string, lastChar rune) bool {
+			i, err := strconv.ParseInt(textToCheck, 10, 64)
+			if err != nil || i < 1 || i > 12 {
+				return false
+			}
+			return true
+		}, func(text string) { resultsFormStartMonth = text }).
+		AddInputField("Start Day:", resultsFormStartDay, 0, func(textToCheck string, lastChar rune) bool {
+			i, err := strconv.ParseInt(textToCheck, 10, 64)
+			if err != nil || i < 0 || i > 31 {
+				return false
+			}
+			return true
+		}, func(text string) { resultsFormStartDay = text }).
+		AddInputField("End Year:", resultsFormEndYear, 0, func(textToCheck string, lastChar rune) bool {
+			i, err := strconv.ParseInt(textToCheck, 10, 64)
+			if err != nil || i < 0 {
+				return false
+			}
+			return true
+		}, func(text string) { resultsFormEndYear = text }).
+		AddInputField("End Month:", resultsFormEndMonth, 0, func(textToCheck string, lastChar rune) bool {
+			i, err := strconv.ParseInt(textToCheck, 10, 64)
+			if err != nil || i < 1 || i > 12 {
+				return false
+			}
+			return true
+		}, func(text string) { resultsFormEndMonth = text }).
+		AddInputField("End Day:", resultsFormEndDay, 0, func(textToCheck string, lastChar rune) bool {
+			i, err := strconv.ParseInt(textToCheck, 10, 64)
+			if err != nil || i < 0 || i > 31 {
+				return false
+			}
+			return true
+		}, func(text string) { resultsFormEndDay = text }).
+		AddInputField("Starting Balance:", lib.FormatAsCurrency(resultsFormAmount), 0, nil, func(text string) {
+			resultsFormAmount = int(lib.ParseDollarAmount(text, false))
+		}).
+		AddButton("Submit", func() {
+			getResultsTable()
+		})
+
+	resultsForm.SetLabelColor(tcell.ColorViolet)
+	resultsForm.SetBorder(true)
+	resultsTable.SetTitle("Results")
+	resultsTable.SetBorders(false).
+		SetSelectable(true, false). // set row & cells to be selectable
+		SetSeparator(' ')
+
+	// resultsTableFlex := tview.NewFlex().SetDirection(tview.FlexRow)
+	// resultsTableFlex.AddItem(resultsTable, 0, 1, false)
+	// resultsTableFlex.SetBorder(true)
+
+	resultsRightSide = tview.NewFlex().SetDirection(tview.FlexRow)
+	resultsRightSide.AddItem(resultsTable, 0, 2, true).AddItem(resultsDescription, 0, 1, false)
+
+	resultsPage = tview.NewFlex().SetDirection(tview.FlexColumn)
+	resultsPage.AddItem(resultsForm, 0, 1, true).AddItem(resultsRightSide, 0, 3, false)
+}
+
+func getResultsTable() {
+	resultsTable.Clear()
+
+	// get results
+	results, err := lib.GenerateResultsFromDateStrings(
+		&(selectedProfile.TX),
+		resultsFormAmount,
+		fmt.Sprintf(
+			"%v-%v-%v",
+			resultsFormStartYear,
+			resultsFormStartMonth,
+			resultsFormStartDay,
+		),
+		fmt.Sprintf(
+			"%v-%v-%v",
+			resultsFormEndYear,
+			resultsFormEndMonth,
+			resultsFormEndDay,
+		),
+	)
+	if err != nil {
+		// TODO: add better error display
+		panic(err)
+	}
+
+	latestResults = &results
+
+	// set up headers
+	hDate := tview.NewTableCell(c.ColumnDate)
+	hBalance := tview.NewTableCell(c.ColumnBalance)
+	hCumulativeIncome := tview.NewTableCell(c.ColumnCumulativeIncome)
+	hCumulativeExpenses := tview.NewTableCell(c.ColumnCumulativeExpenses)
+	hDayExpenses := tview.NewTableCell(c.ColumnDayExpenses)
+	hDayIncome := tview.NewTableCell(c.ColumnDayIncome)
+	hDayNet := tview.NewTableCell(c.ColumnDayNet)
+	hDiffFromStart := tview.NewTableCell(c.ColumnDiffFromStart)
+	hDayTransactionNames := tview.NewTableCell(c.ColumnDayTransactionNames)
+
+	resultsTable.SetCell(0, 0, hDate)
+	resultsTable.SetCell(0, 1, hBalance)
+	resultsTable.SetCell(0, 2, hCumulativeIncome)
+	resultsTable.SetCell(0, 3, hCumulativeExpenses)
+	resultsTable.SetCell(0, 4, hDayExpenses)
+	resultsTable.SetCell(0, 5, hDayIncome)
+	resultsTable.SetCell(0, 6, hDayNet)
+	resultsTable.SetCell(0, 7, hDiffFromStart)
+	resultsTable.SetCell(0, 7, hDiffFromStart)
+	resultsTable.SetCell(0, 8, hDayTransactionNames)
+
+	// now add the remaining rows
+	for i := range results {
+		rDate := tview.NewTableCell(lib.FormatAsDate(results[i].Date))
+		rBalance := tview.NewTableCell(lib.FormatAsCurrency(results[i].Balance))
+		rCumulativeIncome := tview.NewTableCell(lib.FormatAsCurrency(results[i].CumulativeIncome))
+		rCumulativeExpenses := tview.NewTableCell(lib.FormatAsCurrency(results[i].CumulativeExpenses))
+		rDayExpenses := tview.NewTableCell(lib.FormatAsCurrency(results[i].DayExpenses))
+		rDayIncome := tview.NewTableCell(lib.FormatAsCurrency(results[i].DayIncome))
+		rDayNet := tview.NewTableCell(lib.FormatAsCurrency(results[i].DayNet))
+		rDiffFromStart := tview.NewTableCell(lib.FormatAsCurrency(results[i].DiffFromStart))
+		rDayTransactionNames := tview.NewTableCell(results[i].DayTransactionNames)
+
+		rDayTransactionNames.SetExpansion(1)
+
+		rDate.SetTextColor(tcell.ColorWhite)
+		rBalance.SetTextColor(tcell.ColorWhite)
+		rCumulativeIncome.SetTextColor(tcell.ColorWhite)
+		rCumulativeExpenses.SetTextColor(tcell.ColorWhite)
+		rDayExpenses.SetTextColor(tcell.ColorWhite)
+		rDayIncome.SetTextColor(tcell.ColorWhite)
+		rDayNet.SetTextColor(tcell.ColorWhite)
+		rDiffFromStart.SetTextColor(tcell.ColorWhite)
+		rDayTransactionNames.SetTextColor(tcell.ColorWhite)
+
+		resultsTable.SetCell(i+1, 0, rDate)
+		resultsTable.SetCell(i+1, 1, rBalance)
+		resultsTable.SetCell(i+1, 2, rCumulativeIncome)
+		resultsTable.SetCell(i+1, 3, rCumulativeExpenses)
+		resultsTable.SetCell(i+1, 4, rDayExpenses)
+		resultsTable.SetCell(i+1, 5, rDayIncome)
+		resultsTable.SetCell(i+1, 6, rDayNet)
+		resultsTable.SetCell(i+1, 7, rDiffFromStart)
+		resultsTable.SetCell(i+1, 8, rDayTransactionNames)
+	}
+
+	resultsTable.SetSelectionChangedFunc(func(row, column int) {
+		if row <= 0 {
+			return
+		}
+		resultsDescription.Clear()
+		// ensure there are enough results before trying to show something
+		if len(*latestResults)-1 > row-1 {
+			var sb strings.Builder
+			for _, t := range (*latestResults)[row-1].DayTransactionNamesSlice {
+				sb.Write([]byte(fmt.Sprintf("%v\n", t)))
+			}
+			resultsDescription.SetText(sb.String())
+		}
+	})
+
+	// resultsTable.SetBorders(false)
+	// SetSelectable(true, false). // set row & cells to be selectable
+	// SetSeparator(' ')
+
+	app.SetFocus(resultsTable)
+}
+
 func main() {
-	runIndex = sync.Map{}
 	var err error
 
 	config, err = loadConfig()
@@ -1613,16 +1790,44 @@ func main() {
 		selectedProfile = &(config.Profiles[0])
 	}
 
+	b, err := yaml.Marshal(config)
+	if err != nil {
+		log.Fatalf("failed to marshal config for loading into undo buffer: %v", err.Error())
+	}
+
+	undoBuffer = [][]byte{b}
+	undoBufferPos = 0
+
+	now := time.Now()
+	yr := now.Add(time.Hour * 24 * 365)
+
+	resultsFormStartYear = fmt.Sprint(now.Year())
+	resultsFormStartMonth = fmt.Sprint(int(now.Month()))
+	resultsFormStartDay = fmt.Sprint(now.Day())
+	resultsFormEndYear = fmt.Sprint(yr.Year())
+	resultsFormEndMonth = fmt.Sprint(int(yr.Month()))
+	resultsFormEndDay = fmt.Sprint(yr.Day())
+	resultsFormAmount = 50000
+
+	lastSelectedIndex = -1
 	app = tview.NewApplication()
 	pages = tview.NewPages()
 	getProfilesFlex()
-	resultsPage = tview.NewFlex()
-	billEditorPage = tview.NewFlex()
+	getResultsFlex()
+	getHelpModal()
 
 	pages.AddPage(PAGE_PROFILES, profilesPage, true, true).
-		AddPage(PAGE_RESULTS, resultsPage, true, true)
+		AddPage(PAGE_RESULTS, resultsPage, true, true).
+		AddPage(PAGE_HELP, helpModal, true, true)
 
 	pages.SwitchToPage(PAGE_PROFILES)
+
+	bottomHelpText = tview.NewTextView()
+	bottomHelpText.SetDynamicColors(true)
+	setBottomHelpText()
+
+	layout = tview.NewFlex().SetDirection(tview.FlexRow)
+	layout.AddItem(pages, 0, 1, true).AddItem(bottomHelpText, 1, 0, false)
 
 	app.SetFocus(profileList)
 	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
@@ -1646,20 +1851,43 @@ func main() {
 			// 	})
 			// 	return nil
 			// }
-		} else if e.Key() == tcell.KeyEnter {
-			// if isSearching {
-			// 	if len(filteredResults) == 0 {
-			// 		// getFilteredList(list, *commands, "")
-			// 	}
-			// 	endSearch(fmt.Sprintf("searched: %v", searchTerm))
-			// 	return nil
-			// }
+		} else if e.Key() == tcell.KeyF1 {
+			pages.SwitchToPage(PAGE_HELP)
+			setBottomHelpText()
+			return nil
+		} else if e.Rune() == '?' {
+			switch app.GetFocus() {
+			case transactionsInputField:
+			case resultsForm:
+				return e
+			default:
+				setBottomHelpText()
+				pages.SwitchToPage(PAGE_HELP)
+			}
+		} else if e.Key() == tcell.KeyF2 {
+			pages.SwitchToPage(PAGE_PROFILES)
+			setBottomHelpText()
+			return nil
+		} else if e.Key() == tcell.KeyF3 {
+			getResultsTable()
+			pages.SwitchToPage(PAGE_RESULTS)
+			setBottomHelpText()
+			return nil
 		} else if e.Key() == tcell.KeyEscape {
 			currentFocus := app.GetFocus()
 			switch currentFocus {
 			case transactionsInputField:
 				return e
 			case transactionsTable:
+				// deselect the last selected index on the first press
+				if lastSelectedIndex != -1 {
+					lastSelectedIndex = -1
+					getTransactionsTable()
+					cr, cc := transactionsTable.GetSelection()
+					transactionsTable.Select(cr, cc)
+					app.SetFocus(transactionsTable)
+					return nil
+				}
 				anySelected := false
 				for i := range selectedProfile.TX {
 					if selectedProfile.TX[i].Selected {
@@ -1667,15 +1895,28 @@ func main() {
 						selectedProfile.TX[i].Selected = false
 					}
 				}
+
 				if !anySelected {
 					app.SetFocus(profileList)
 					return nil
 				}
+				modified()
 				getTransactionsTable()
 				cr, cc := transactionsTable.GetSelection()
 				transactionsTable.Select(cr, cc)
 				app.SetFocus(transactionsTable)
+			case resultsForm:
+				app.SetFocus(resultsTable)
+				return nil
+			case resultsTable:
+				pages.SwitchToPage(PAGE_PROFILES)
+				return nil
 			default:
+				page, _ := pages.GetFrontPage()
+				if page == PAGE_RESULTS {
+					pages.SwitchToPage(PAGE_PROFILES)
+					return nil
+				}
 				app.Stop()
 			}
 
@@ -1753,6 +1994,14 @@ func main() {
 				}
 				return nil
 			case PAGE_RESULTS:
+				switch app.GetFocus() {
+				case resultsTable:
+					app.SetFocus(resultsDescription)
+				case resultsDescription:
+					app.SetFocus(resultsForm)
+				case resultsForm:
+					return e
+				}
 				return e
 			}
 		} else if e.Key() == tcell.KeyBacktab {
@@ -1786,64 +2035,46 @@ func main() {
 				}
 				return nil
 			case PAGE_RESULTS:
+				switch app.GetFocus() {
+				case resultsTable:
+					app.SetFocus(resultsForm)
+				case resultsDescription:
+					app.SetFocus(resultsTable)
+				case resultsForm:
+					return e
+				}
 				return e
 			}
 		} else if e.Key() == tcell.KeyPgUp {
-			// if isSearching {
-			// 	return e
-			// }
-			// switch currentlyFocusedBox {
-			// case BOX_STDOUT:
-			// 	app.SetFocus(info)
-			// 	r, c := info.GetScrollOffset()
-			// 	_, _, _, h := info.GetRect()
-			// 	newRow := r - h + 2 // the borders add some extra distance
-			// 	if newRow < 0 {
-			// 		newRow = 0
-			// 	}
-			// 	info.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_STDERR:
-			// 	app.SetFocus(errors)
-			// 	r, c := errors.GetScrollOffset()
-			// 	_, _, _, h := errors.GetRect()
-			// 	newRow := r - h + 2 // the borders add some extra distance
-			// 	if newRow < 0 {
-			// 		newRow = 0
-			// 	}
-			// 	errors.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_LIST:
-			// 	fallthrough
-			// default:
-			// 	app.SetFocus(list)
-			// 	return e
-			// }
+			f := app.GetFocus()
+			p, _ := pages.GetFrontPage()
+			switch p {
+			case PAGE_RESULTS:
+				switch f {
+				case resultsDescription:
+					return e
+				case resultsTable:
+					return e
+				default:
+					app.SetFocus(resultsTable)
+					return nil
+				}
+			}
 		} else if e.Key() == tcell.KeyPgDn {
-			// if isSearching {
-			// 	return e
-			// }
-			// switch currentlyFocusedBox {
-			// case BOX_STDOUT:
-			// 	app.SetFocus(info)
-			// 	r, c := info.GetScrollOffset()
-			// 	_, _, _, h := info.GetRect()
-			// 	newRow := r + h - 2 // the borders add some extra distance
-			// 	info.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_STDERR:
-			// 	app.SetFocus(errors)
-			// 	r, c := info.GetScrollOffset()
-			// 	_, _, _, h := errors.GetRect()
-			// 	newRow := r + h - 2 // the borders add some extra distance
-			// 	errors.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_LIST:
-			// 	fallthrough
-			// default:
-			// 	app.SetFocus(list)
-			// 	return e
-			// }
+			f := app.GetFocus()
+			p, _ := pages.GetFrontPage()
+			switch p {
+			case PAGE_RESULTS:
+				switch f {
+				case resultsDescription:
+					return e
+				case resultsTable:
+					return e
+				default:
+					app.SetFocus(resultsTable)
+					return nil
+				}
+			}
 		} else if e.Key() == tcell.KeyUp {
 			switch app.GetFocus() {
 			case transactionsInputField:
@@ -1951,10 +2182,53 @@ func main() {
 			selectedProfile.modified = false
 			statusText.SetText("[gray] saved changes")
 			return nil
+		} else if e.Rune() == 'e' || e.Rune() == 'r' {
+			pageName, _ := pages.GetFrontPage()
+			switch pageName {
+			case PAGE_PROFILES:
+				switch app.GetFocus() {
+				case transactionsInputField:
+					return e
+				case profileList:
+					// add/duplicate new profile
+					transactionsInputField.SetDoneFunc(func(key tcell.Key) {
+						switch key {
+						case tcell.KeyEscape:
+							// don't save the changes
+							deactivateTransactionsInputField()
+							return
+						default:
+							// validate that the name is unique
+							newProfileName := transactionsInputField.GetText()
+							for i := range config.Profiles {
+								if newProfileName == config.Profiles[i].Name {
+									transactionsInputField.SetLabel("profile name must be unique:")
+									return
+								}
+							}
+
+							selectedProfile.Name = newProfileName
+							modified()
+							deactivateTransactionsInputField()
+							populateProfilesPage(true, true)
+							getTransactionsTable()
+							transactionsTable.Select(0, 0)
+							app.SetFocus(profileList)
+						}
+					})
+					activateTransactionsInputField(fmt.Sprintf("set new unique profile name for %v:", selectedProfile.Name), "")
+					return nil
+				default:
+					return e
+				}
+			case PAGE_RESULTS:
+				return e
+			}
 		} else if e.Key() == tcell.KeyCtrlD || e.Key() == tcell.KeyCtrlN || e.Rune() == 'a' || e.Rune() == 'n' {
 			pageName, _ := pages.GetFrontPage()
 			switch pageName {
 			case PAGE_PROFILES:
+				duplicating := e.Key() == tcell.KeyCtrlD
 				switch app.GetFocus() {
 				case transactionsInputField:
 					return e
@@ -1964,7 +2238,6 @@ func main() {
 					cr, cc := transactionsTable.GetSelection()
 					actual := cr - 1 // skip header
 					nt := []lib.TX{}
-					duplicating := e.Key() == tcell.KeyCtrlD
 					// iterate through the list once to find how many selected
 					// items there are
 					numSelected := 0
@@ -1974,36 +2247,19 @@ func main() {
 						}
 					}
 					for i := range selectedProfile.TX {
-						if (i == actual && numSelected <= 1) || (selectedProfile.TX[i].Selected && duplicating) {
-							now := time.Now()
-							oneMonth := now.Add(time.Hour * 24 * 31)
-
+						isHighlightedRow := i == actual && numSelected <= 1
+						isSelectedDuplicationCandidate := selectedProfile.TX[i].Selected && duplicating
+						if isHighlightedRow || isSelectedDuplicationCandidate {
 							// keep track of the highest order in a temporary
 							// slice
 							largestOrderHolder := []lib.TX{}
 							largestOrderHolder = append(largestOrderHolder, selectedProfile.TX...)
 							largestOrderHolder = append(largestOrderHolder, nt...)
 
-							newTX := lib.TX{
-								Order:       lib.GetLargestOrder(largestOrderHolder) + 1,
-								Amount:      500,
-								Active:      true,
-								Name:        "New",
-								Frequency:   c.MONTHLY,
-								Interval:    1,
-								StartsDay:   now.Day(),
-								StartsMonth: int(now.Month()),
-								StartsYear:  now.Year(),
-								EndsDay:     oneMonth.Day(),
-								EndsMonth:   int(oneMonth.Month()),
-								EndsYear:    oneMonth.Year(),
-								ID:          uuid.NewString(),
-								CreatedAt:   now,
-								UpdatedAt:   now,
-							}
+							newTX := lib.GetNewTX()
+							newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
 
 							if duplicating {
-								newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
 								newTX.Amount = selectedProfile.TX[i].Amount
 								newTX.Active = selectedProfile.TX[i].Active
 								newTX.Name = selectedProfile.TX[i].Name
@@ -2023,12 +2279,74 @@ func main() {
 							nt = append(nt, newTX)
 						}
 					}
+
+					// edge case: if we are not duplicating, and none are
+					// selected, then it means that the user is currently trying
+					// to add a new transaction, and they probably have the
+					// cursor on the table's headers row
+					if !duplicating && numSelected == 0 && len(nt) == 0 {
+						largestOrderHolder := []lib.TX{}
+						largestOrderHolder = append(largestOrderHolder, selectedProfile.TX...)
+						largestOrderHolder = append(largestOrderHolder, nt...)
+						newTX := lib.GetNewTX()
+						newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
+						nt = append(nt, newTX)
+					}
+
 					if len(nt) > 0 {
-						selectedProfile.TX = slices.Insert(selectedProfile.TX, actual, nt...)
+						// handles the case of adding/duplicating when the cursor
+						// is on the headers row
+						if actual < 0 {
+							actual = 0
+						}
+						if len(selectedProfile.TX) == 0 || actual > len(selectedProfile.TX)-1 {
+							selectedProfile.TX = append(selectedProfile.TX, nt...)
+						} else {
+							selectedProfile.TX = slices.Insert(selectedProfile.TX, actual, nt...)
+						}
+						modified()
 						getTransactionsTable()
 						transactionsTable.Select(cr, cc)
 						app.SetFocus(transactionsTable)
 					}
+				case profileList:
+					// add/duplicate new profile
+					transactionsInputField.SetDoneFunc(func(key tcell.Key) {
+						switch key {
+						case tcell.KeyEscape:
+							// don't save the changes
+							deactivateTransactionsInputField()
+							return
+						default:
+							// validate that the name is unique
+							newProfileName := transactionsInputField.GetText()
+							for i := range config.Profiles {
+								if newProfileName == config.Profiles[i].Name {
+									transactionsInputField.SetLabel("profile name must be unique:")
+									return
+								}
+							}
+
+							newProfile := Profile(*selectedProfile)
+							newProfile.Name = newProfileName
+							if !duplicating {
+								newProfile = Profile{Name: newProfileName}
+							}
+
+							selectedProfile = &newProfile
+
+							config.Profiles = append(config.Profiles, newProfile)
+							modified()
+							deactivateTransactionsInputField()
+							populateProfilesPage(true, true)
+							getTransactionsTable()
+							transactionsTable.Select(0, 0)
+							// app.SetFocus(transactionsTable)
+							app.SetFocus(profileList)
+						}
+					})
+					activateTransactionsInputField("set new unique profile name:", "")
+					return nil
 				default:
 					return e
 				}
@@ -2047,7 +2365,7 @@ func main() {
 					// get the height & width of the transactions table
 					cr, cc := transactionsTable.GetSelection()
 					actual := cr - 1 // skip header
-					for i := len(selectedProfile.TX) - 1; i > 0; i-- {
+					for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
 						if selectedProfile.TX[i].Selected || i == actual {
 							selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
 						}
@@ -2067,7 +2385,7 @@ func main() {
 			case PAGE_RESULTS:
 				return e
 			}
-		} else if e.Rune() == ' ' {
+		} else if e.Rune() == 'm' {
 			pageName, _ := pages.GetFrontPage()
 			switch pageName {
 			case PAGE_PROFILES:
@@ -2075,16 +2393,136 @@ func main() {
 				case transactionsInputField:
 					return e
 				case transactionsTable:
-					// duplicate the current transaction
-					// get the height & width of the transactions table
-					cr, cc := transactionsTable.GetSelection()
-					actual := cr - 1 // skip header
+					// move all selected items to the currently selected row:
+					// delete items, then re-add the items after the current
+					// row, then highlight the correct row
+
+					// but first, check if any items are selected at all
+					anySelected := false
 					for i := range selectedProfile.TX {
-						if i == actual {
-							selectedProfile.TX[i].Selected = !selectedProfile.TX[i].Selected
+						if selectedProfile.TX[i].Selected {
+							anySelected = true
 							break
 						}
 					}
+
+					if !anySelected {
+						statusText.SetText("[gray]nothing to move")
+						return nil
+					}
+
+					// get the height & width of the transactions table
+					cr, cc := transactionsTable.GetSelection()
+					actual := cr - 1 // skip header
+
+					// take note of the currently selected value (cannot be
+					// a candidate for move/deletion since it is the target
+					// for the move)
+					txid := selectedProfile.TX[actual].ID
+
+					// first delete the values from the slice and keep track of
+					// them
+					deleted := []lib.TX{}
+					newTX := []lib.TX{}
+					// for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
+					for i := range selectedProfile.TX {
+						if selectedProfile.TX[i].ID == txid {
+							// this is the target to move to
+							selectedProfile.TX[i].Selected = false
+							newTX = append(newTX, selectedProfile.TX[i])
+						} else if selectedProfile.TX[i].Selected {
+							selectedProfile.TX[i].Selected = true
+							deleted = append(deleted, selectedProfile.TX[i])
+							// selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
+						} else {
+							selectedProfile.TX[i].Selected = false
+							newTX = append(newTX, selectedProfile.TX[i])
+						}
+					}
+
+					// fmt.Println(numSelected)
+
+					selectedProfile.TX = newTX
+
+					// find the move target now that the slice has been shifted
+					newPosition := 0
+					for i := range selectedProfile.TX {
+						if selectedProfile.TX[i].ID == txid {
+							newPosition = i + 1
+							break
+						}
+					}
+
+					if newPosition >= len(selectedProfile.TX) {
+						newPosition = len(selectedProfile.TX)
+					} else if newPosition < 0 {
+						newPosition = 0
+					}
+
+					selectedProfile.TX = slices.Insert(selectedProfile.TX, newPosition, deleted...)
+
+					modified()
+
+					// re-render the table
+					getTransactionsTable()
+
+					transactionsTable.Select(newPosition+1, cc) // offset for headers
+					app.SetFocus(transactionsTable)
+				default:
+					app.SetFocus(profileList)
+				}
+				return nil
+			case PAGE_RESULTS:
+				return e
+			}
+		} else if e.Rune() == ' ' || e.Key() == tcell.KeyCtrlSpace {
+			pageName, _ := pages.GetFrontPage()
+			switch pageName {
+			case PAGE_PROFILES:
+				switch app.GetFocus() {
+				case transactionsInputField:
+					return e
+				case transactionsTable:
+					cr, cc := transactionsTable.GetSelection()
+					// get the height & width of the transactions table
+					actual := cr - 1 // skip header
+					if e.Key() == tcell.KeyCtrlSpace {
+						// shift modifier is used to extend the selection
+						// from the previously selected index to the current
+						newSelectionValue := false
+						// start by finding the currently highlighted TX
+						for i := range selectedProfile.TX {
+							if i == actual {
+								newSelectionValue = !selectedProfile.TX[i].Selected
+								break
+							}
+						}
+
+						if lastSelectedIndex == -1 {
+							lastSelectedIndex = actual
+						}
+
+						// now that we've determined what the selection value
+						// should be, proceed to apply it to every value from
+						// lastSelectedIndex to the current index
+						for i := range selectedProfile.TX {
+							// last=5, current=10, select from 5-10 => last < i < actual
+							// last=10, current=3, select from 3-10 => last > i > actual
+							shouldModify := (lastSelectedIndex < i && i <= actual) || (lastSelectedIndex > i && i >= actual)
+							if shouldModify {
+								selectedProfile.TX[i].Selected = newSelectionValue
+							}
+						}
+					} else {
+						for i := range selectedProfile.TX {
+							if i == actual {
+								selectedProfile.TX[i].Selected = !selectedProfile.TX[i].Selected
+								break
+							}
+						}
+					}
+					lastSelectedIndex = actual
+					modified()
 					getTransactionsTable()
 					transactionsTable.Select(cr, cc)
 					app.SetFocus(transactionsTable)
@@ -2094,6 +2532,42 @@ func main() {
 			case PAGE_RESULTS:
 				return e
 			}
+		} else if e.Key() == tcell.KeyCtrlZ {
+			pageName, _ := pages.GetFrontPage()
+			switch pageName {
+			case PAGE_PROFILES:
+				switch app.GetFocus() {
+				case transactionsInputField:
+					return e
+				case transactionsTable:
+					undo()
+				default:
+					return e
+				}
+			case PAGE_RESULTS:
+				return e
+			}
+		} else if e.Key() == tcell.KeyCtrlY {
+			pageName, _ := pages.GetFrontPage()
+			switch pageName {
+			case PAGE_PROFILES:
+				switch app.GetFocus() {
+				case transactionsInputField:
+					return e
+				case transactionsTable:
+					redo()
+				default:
+					return e
+				}
+			case PAGE_RESULTS:
+				return e
+			}
+		} else if e.Key() == tcell.KeyCtrlI {
+			stats, err := lib.GetStats(*latestResults)
+			if err != nil {
+				return nil
+			}
+			resultsDescription.SetText(stats)
 		} else {
 			// if isSearching {
 			// 	setBottomLeftText("[aqua]searching:")
@@ -2118,7 +2592,7 @@ func main() {
 		return e
 	})
 
-	if err := app.SetRoot(pages, true).EnableMouse(false).Run(); err != nil {
+	if err := app.SetRoot(layout, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
 }

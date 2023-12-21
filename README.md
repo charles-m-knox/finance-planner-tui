@@ -2,11 +2,7 @@
 
 TODO:
 
-- `ctrl+d` for duplicate entry
-- `delete` for delete entry
-- `ctrl+n` for new entry
 - `ctrl+i` for stats?
 - `ctrl+F` and `/` for search
-- `enter` for sorting columns
-- `shift+space` to toggle distant selections
-- ? for viewing results
+- `?` and `h` key for help
+- `ctrl+enter` for viewing results, `esc` for going back to the main page

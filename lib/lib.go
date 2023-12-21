@@ -134,17 +134,35 @@ type Result struct { // csv/table output row
 // GetNewTX returns an empty transaction with sensible defaults.
 func GetNewTX() TX {
 	now := time.Now()
+	oneMonth := now.Add(time.Hour * 24 * 31)
 	return TX{
-		Order:     0,
-		Amount:    -500,
-		Active:    true,
-		Name:      c.New,
-		Frequency: c.WEEKLY,
-		Interval:  1,
-		ID:        uuid.NewString(),
-		CreatedAt: now,
-		UpdatedAt: now,
+		Order:       0,
+		Amount:      500,
+		Active:      true,
+		Name:        c.New,
+		Frequency:   c.MONTHLY,
+		Interval:    1,
+		StartsDay:   now.Day(),
+		StartsMonth: int(now.Month()),
+		StartsYear:  now.Year(),
+		EndsDay:     oneMonth.Day(),
+		EndsMonth:   int(oneMonth.Month()),
+		EndsYear:    oneMonth.Year(),
+		ID:          uuid.NewString(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
+	// return TX{
+	// 	Order:     0,
+	// 	Amount:    -500,
+	// 	Active:    true,
+	// 	Name:      c.New,
+	// 	Frequency: c.WEEKLY,
+	// 	Interval:  1,
+	// 	ID:        uuid.NewString(),
+	// 	CreatedAt: now,
+	// 	UpdatedAt: now,
+	// }
 }
 
 // HasWeekday checks if a recurring transaction definition contains
@@ -603,12 +621,12 @@ func GenerateResultsFromDateStrings(txs *[]TX, bal int, startDt string, endDt st
 	now := time.Now()
 	stYr, stMo, stDay := ParseYearMonthDateString(startDt)
 	endYr, endMo, endDay := ParseYearMonthDateString(endDt)
-	if startDt == "0-0-0" || startDt == "" {
+	if startDt == "0-0-0" || startDt == "--" || startDt == "" {
 		stYr = now.Year()
 		stMo = int(now.Month())
 		stDay = now.Day()
 	}
-	if endDt == "0-0-0" || endDt == "" {
+	if endDt == "0-0-0" || endDt == "--" || endDt == "" {
 		endYr = now.Year() + 1
 		endMo = int(now.Month())
 		endDay = now.Day()
@@ -913,7 +931,7 @@ func ValidateTransactions(tx *[]TX) error {
 // GetLargestOrder returns the highest "Order" present in a list of
 // transactions.
 func GetLargestOrder(txs []TX) int {
-	m := -1
+	m := 0
 
 	for i := range txs {
 		if txs[i].Order > m {
