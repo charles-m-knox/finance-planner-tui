@@ -2,6 +2,8 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/gdamore/tcell/v2"
+	"github.com/google/uuid"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
 	"gopkg.in/yaml.v3"
@@ -33,6 +36,7 @@ const (
 	PAGE_PROFILES = "Profiles"
 	PAGE_RESULTS  = "Results"
 	PAGE_HELP     = "Help"
+	PAGE_PROMPT   = "Prompt"
 
 	UNDO_BUFFER_MAX_LEN = 1000
 )
@@ -42,6 +46,7 @@ var (
 	layout                      *tview.Flex
 	config                      Config
 	selectedProfile             *Profile
+	previousPage                string
 	pages                       *tview.Pages
 	currentlyFocusedBox         string
 	profilesPage                *tview.Flex
@@ -72,9 +77,15 @@ var (
 	// help page
 	helpModal      *tview.TextView
 	bottomHelpText *tview.TextView
+	// prompt page
+	promptBox *tview.Modal
 
 	undoBuffer    [][]byte
 	undoBufferPos int
+
+	// flags
+	configFile    string
+	shouldMigrate bool
 )
 
 type Profile struct {
@@ -86,11 +97,9 @@ type Profile struct {
 }
 
 type Config struct {
-	Keybindings                 []Keybinding `yaml:"keybindings"`
-	IdleRefreshRateMs           int          `yaml:"idleRefreshRateMs"`
-	ProcessRunningRefreshRateMs int          `yaml:"processRunningRefreshRateMs"`
-
-	Profiles []Profile `yaml:"profiles"`
+	Keybindings []Keybinding `yaml:"keybindings"`
+	Profiles    []Profile    `yaml:"profiles"`
+	Version     string
 }
 
 type Keybinding struct {
@@ -104,27 +113,37 @@ func getHelpModal() {
 	helpModal.SetText(c.HelpText).SetDynamicColors(true)
 }
 
+func init() {
+	flag.StringVar(&configFile, "f", "config.yml", "the file to load from and save to")
+	flag.BoolVar(&shouldMigrate, "migrate", false, "whether or not to migrate a file named conf.json in the current directory from a previous config version to the latest version and save it as migrated.yml")
+	flag.Parse()
+
+	if shouldMigrate {
+		JSONtoYAML()
+	}
+}
+
 func setBottomHelpText() {
 	p, _ := pages.GetFrontPage()
 
 	var sb strings.Builder
 
 	if p == PAGE_HELP {
-		sb.WriteString("[blue][F1[] help ")
+		sb.WriteString("[gray][F1[][gold] help ")
 	} else {
-		sb.WriteString("[white][F1[][gray] help ")
+		sb.WriteString("[gray][F1[][gray] help ")
 	}
 
 	if p == PAGE_PROFILES {
-		sb.WriteString("[blue][F2[] profiles & transactions ")
+		sb.WriteString("[gray][F2[][gold] profiles & transactions ")
 	} else {
-		sb.WriteString("[white][F2[][gray] profiles & transactions ")
+		sb.WriteString("[gray][F2[][gray] profiles & transactions ")
 	}
 
 	if p == PAGE_RESULTS {
-		sb.WriteString("[blue][F3[] results ")
+		sb.WriteString("[gray][F3[][gold] results ")
 	} else {
-		sb.WriteString("[white][F3[][gray] result")
+		sb.WriteString("[gray][F3[][gray] results")
 	}
 
 	bottomHelpText.SetText(sb.String())
@@ -133,18 +152,16 @@ func setBottomHelpText() {
 }
 
 func loadConfig() (c Config, err error) {
-	// TODO: later on, try current dir, then xdg_config_dir, then xdg_user_dir
 	xdgConfig := path.Join(xdg.ConfigHome, "frequencmd", "config.yml")
 	xdgHome := path.Join(xdg.Home, "frequencmd", "config.yml")
-	curConf := "config.yml"
 
-	b, err := os.ReadFile(curConf)
+	b, err := os.ReadFile(configFile)
 	if err == nil {
 		err = yaml.Unmarshal(b, &c)
 		if err != nil {
 			return c, fmt.Errorf(
 				"failed to read config from %v: %v",
-				curConf,
+				configFile,
 				err.Error(),
 			)
 		}
@@ -153,6 +170,7 @@ func loadConfig() (c Config, err error) {
 
 	b, err = os.ReadFile(xdgConfig)
 	if err == nil {
+		configFile = xdgConfig
 		err = yaml.Unmarshal(b, &c)
 		if err != nil {
 			return c, fmt.Errorf(
@@ -166,6 +184,7 @@ func loadConfig() (c Config, err error) {
 
 	b, err = os.ReadFile(xdgHome)
 	if err == nil {
+		configFile = xdgHome
 		err = yaml.Unmarshal(b, &c)
 		if err != nil {
 			return c, fmt.Errorf(
@@ -179,15 +198,58 @@ func loadConfig() (c Config, err error) {
 
 	return c, fmt.Errorf(
 		"failed to read config from %v, %v, and %v: %v",
-		curConf,
+		configFile,
 		xdgConfig,
 		xdgHome,
 		err.Error(),
 	)
 }
 
+// converts a json file to yaml (one-off job for converting from legacy versions
+// of this program)
+func JSONtoYAML() {
+	b, err := os.ReadFile("conf.json")
+	if err != nil {
+		log.Fatalf("failed to load conf.json")
+	}
+
+	nc := Config{
+		Profiles: []Profile{
+			{
+				Name: "migrated",
+				TX:   []lib.TX{},
+			},
+		},
+	}
+
+	err = json.Unmarshal(b, &nc.Profiles[0].TX)
+	if err != nil {
+		log.Fatalf("failed to unmarshal conf: %v", err.Error())
+	}
+
+	// update all uuids in the config
+	for i := range nc.Profiles[0].TX {
+		nc.Profiles[0].TX[i].ID = uuid.NewString()
+	}
+
+	out, err := yaml.Marshal(nc)
+	err = os.WriteFile("migrated.yml", out, 0o644)
+	if err != nil {
+		log.Fatalf("failed to write migrated.yml: %v", err.Error())
+	}
+}
+
 func getNowStr() string {
 	return time.Now().Format("15:04:05")
+}
+
+func getActiveProfileText(profile Profile) string {
+	profileText := fmt.Sprintf("%v", profile.Name)
+	if selectedProfile != nil && selectedProfile.Name == profile.Name {
+		profileText = fmt.Sprintf("[white::bu]%v (open)%v", profile.Name, c.RESET_STYLE)
+	}
+
+	return profileText
 }
 
 func populateProfilesPage(doProfile, doBills bool) {
@@ -202,11 +264,7 @@ func populateProfilesPage(doProfile, doBills bool) {
 	for i := range config.Profiles {
 		profile := &(config.Profiles[i])
 		if doProfile {
-			profileText := fmt.Sprintf("[blue]%v", profile.Name)
-			if selectedProfile != nil && selectedProfile.Name == profile.Name {
-				profileText = fmt.Sprintf("[white]*%v", profile.Name)
-			}
-			profileList.AddItem(profileText, "", 0, func() {
+			profileList.AddItem(getActiveProfileText(*profile), "", 0, func() {
 				selectedProfile = profile
 				populateProfilesPage(true, true)
 				getTransactionsTable()
@@ -236,6 +294,216 @@ func populateProfilesPage(doProfile, doBills bool) {
 	}
 
 	// billsSummary.SetText(sb.String())
+}
+
+func sortTX() {
+	sort.SliceStable(
+		selectedProfile.TX,
+		func(i, j int) bool {
+			tj := (selectedProfile.TX)[j]
+			ti := (selectedProfile.TX)[i]
+
+			switch transactionsTableSortColumn {
+
+			// invisible order column (default when no sort is set)
+			case c.None:
+				return tj.Order > ti.Order
+
+			// Order
+			case fmt.Sprintf("%v%v", c.ColumnOrder, c.Asc):
+				return ti.Order > tj.Order
+			case fmt.Sprintf("%v%v", c.ColumnOrder, c.Desc):
+				return ti.Order < tj.Order
+
+			// active
+			case fmt.Sprintf("%v%v", c.ColumnActive, c.Asc):
+				if ti.Active == tj.Active {
+					return ti.Order > tj.Order
+				}
+				return ti.Active
+			case fmt.Sprintf("%v%v", c.ColumnActive, c.Desc):
+				if ti.Active == tj.Active {
+					return ti.Order < tj.Order
+				}
+				return tj.Active
+
+			// weekdays
+			case fmt.Sprintf("%v%v", c.WeekdayMonday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayMondayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayMondayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdayMonday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayMondayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayMondayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			case fmt.Sprintf("%v%v", c.WeekdayTuesday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayTuesdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayTuesdayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdayTuesday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayTuesdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayTuesdayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			case fmt.Sprintf("%v%v", c.WeekdayWednesday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayWednesdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayWednesdayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdayWednesday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayWednesdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayWednesdayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			case fmt.Sprintf("%v%v", c.WeekdayThursday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayThursdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayThursdayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdayThursday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayThursdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayThursdayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			case fmt.Sprintf("%v%v", c.WeekdayFriday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayFridayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayFridayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdayFriday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdayFridayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdayFridayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			case fmt.Sprintf("%v%v", c.WeekdaySaturday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdaySaturdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdaySaturdayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdaySaturday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdaySaturdayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdaySaturdayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			case fmt.Sprintf("%v%v", c.WeekdaySunday, c.Asc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdaySundayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdaySundayInt) != -1
+				if tiw == tjw {
+					return ti.Order > tj.Order
+				}
+				return tiw
+
+			case fmt.Sprintf("%v%v", c.WeekdaySunday, c.Desc):
+				tiw := slices.Index(ti.Weekdays, c.WeekdaySundayInt) != -1
+				tjw := slices.Index(tj.Weekdays, c.WeekdaySundayInt) != -1
+				if tiw == tjw {
+					return ti.Order < tj.Order
+				}
+				return tjw
+
+			// other columns
+			case fmt.Sprintf("%v%v", c.ColumnAmount, c.Asc):
+				return ti.Amount > tj.Amount
+			case fmt.Sprintf("%v%v", c.ColumnAmount, c.Desc):
+				return ti.Amount < tj.Amount
+
+			case fmt.Sprintf("%v%v", c.ColumnFrequency, c.Asc):
+				return ti.Frequency > tj.Frequency
+			case fmt.Sprintf("%v%v", c.ColumnFrequency, c.Desc):
+				return ti.Frequency < tj.Frequency
+
+			case fmt.Sprintf("%v%v", c.ColumnInterval, c.Asc):
+				return ti.Interval > tj.Interval
+			case fmt.Sprintf("%v%v", c.ColumnInterval, c.Desc):
+				return ti.Interval < tj.Interval
+			case fmt.Sprintf("%v%v", c.ColumnNote, c.Asc):
+				return strings.ToLower(ti.Note) > strings.ToLower(tj.Note)
+			case fmt.Sprintf("%v%v", c.ColumnNote, c.Desc):
+				return strings.ToLower(ti.Note) < strings.ToLower(tj.Note)
+
+			case fmt.Sprintf("%v%v", c.ColumnName, c.Asc):
+				return strings.ToLower(ti.Name) > strings.ToLower(tj.Name)
+			case fmt.Sprintf("%v%v", c.ColumnName, c.Desc):
+				return strings.ToLower(ti.Name) < strings.ToLower(tj.Name)
+
+			case fmt.Sprintf("%v%v", c.ColumnID, c.Asc):
+				return strings.ToLower(ti.ID) > strings.ToLower(tj.ID)
+			case fmt.Sprintf("%v%v", c.ColumnID, c.Desc):
+				return strings.ToLower(ti.ID) < strings.ToLower(tj.ID)
+
+			case fmt.Sprintf("%v%v", c.ColumnCreatedAt, c.Asc):
+				return tj.CreatedAt.After(tj.CreatedAt)
+			case fmt.Sprintf("%v%v", c.ColumnCreatedAt, c.Desc):
+				return ti.CreatedAt.Before(tj.CreatedAt)
+
+			case fmt.Sprintf("%v%v", c.ColumnUpdatedAt, c.Asc):
+				return ti.UpdatedAt.After(tj.UpdatedAt)
+			case fmt.Sprintf("%v%v", c.ColumnUpdatedAt, c.Desc):
+				return ti.UpdatedAt.Before(tj.UpdatedAt)
+
+			case fmt.Sprintf("%v%v", c.ColumnStarts, c.Asc):
+				ist := fmt.Sprintf("%v-%v-%v", tj.StartsYear, tj.StartsMonth, tj.StartsDay)
+				jst := fmt.Sprintf("%v-%v-%v", ti.StartsYear, ti.StartsMonth, ti.StartsDay)
+				return ist > jst
+			case fmt.Sprintf("%v%v", c.ColumnStarts, c.Desc):
+				ist := fmt.Sprintf("%v-%v-%v", tj.StartsYear, tj.StartsMonth, tj.StartsDay)
+				jst := fmt.Sprintf("%v-%v-%v", ti.StartsYear, ti.StartsMonth, ti.StartsDay)
+				return ist < jst
+
+			case fmt.Sprintf("%v%v", c.ColumnEnds, c.Asc):
+				jend := fmt.Sprintf("%v-%v-%v", tj.EndsYear, tj.EndsMonth, tj.EndsDay)
+				iend := fmt.Sprintf("%v-%v-%v", ti.EndsYear, ti.EndsMonth, ti.EndsDay)
+				return iend > jend
+			case fmt.Sprintf("%v%v", c.ColumnEnds, c.Desc):
+				jend := fmt.Sprintf("%v-%v-%v", tj.EndsYear, tj.EndsMonth, tj.EndsDay)
+				iend := fmt.Sprintf("%v-%v-%v", ti.EndsYear, ti.EndsMonth, ti.EndsDay)
+				return iend < jend
+
+			default:
+				return false
+				// return txs[j].Date.After(txs[i].Date)
+			}
+		},
+	)
 }
 
 func getTransactionsTable() {
@@ -368,124 +636,7 @@ func getTransactionsTable() {
 
 	if selectedProfile != nil {
 		if transactionsTableSortColumn != "" {
-			sort.SliceStable(
-				selectedProfile.TX,
-				func(i, j int) bool {
-					tj := (selectedProfile.TX)[j]
-					ti := (selectedProfile.TX)[i]
-
-					switch transactionsTableSortColumn {
-
-					// invisible order column (default when no sort is set)
-					case c.None:
-						return tj.Order > ti.Order
-
-					// Order
-					case fmt.Sprintf("%v%v", c.ColumnOrder, c.Asc):
-						return ti.Order > tj.Order
-					case fmt.Sprintf("%v%v", c.ColumnOrder, c.Desc):
-						return ti.Order < tj.Order
-
-					// active
-					case fmt.Sprintf("%v%v", c.ColumnActive, c.Asc):
-						return ti.Active
-					case fmt.Sprintf("%v%v", c.ColumnActive, c.Desc):
-						return tj.Active
-
-					// weekdays
-					case fmt.Sprintf("%v%v", c.WeekdayMonday, c.Asc):
-						return ti.HasWeekday(c.WeekdayMondayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayMonday, c.Desc):
-						return tj.HasWeekday(c.WeekdayMondayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayTuesday, c.Asc):
-						return ti.HasWeekday(c.WeekdayTuesdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayTuesday, c.Desc):
-						return tj.HasWeekday(c.WeekdayTuesdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayWednesday, c.Asc):
-						return ti.HasWeekday(c.WeekdayWednesdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayWednesday, c.Desc):
-						return tj.HasWeekday(c.WeekdayWednesdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayThursday, c.Asc):
-						return ti.HasWeekday(c.WeekdayThursdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayThursday, c.Desc):
-						return tj.HasWeekday(c.WeekdayThursdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayFriday, c.Asc):
-						return ti.HasWeekday(c.WeekdayFridayInt)
-					case fmt.Sprintf("%v%v", c.WeekdayFriday, c.Desc):
-						return tj.HasWeekday(c.WeekdayFridayInt)
-					case fmt.Sprintf("%v%v", c.WeekdaySaturday, c.Asc):
-						return ti.HasWeekday(c.WeekdaySaturdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdaySaturday, c.Desc):
-						return tj.HasWeekday(c.WeekdaySaturdayInt)
-					case fmt.Sprintf("%v%v", c.WeekdaySunday, c.Asc):
-						return ti.HasWeekday(c.WeekdaySundayInt)
-					case fmt.Sprintf("%v%v", c.WeekdaySunday, c.Desc):
-						return tj.HasWeekday(c.WeekdaySundayInt)
-
-					// other columns
-					case fmt.Sprintf("%v%v", c.ColumnAmount, c.Asc):
-						return ti.Amount > tj.Amount
-					case fmt.Sprintf("%v%v", c.ColumnAmount, c.Desc):
-						return ti.Amount < tj.Amount
-
-					case fmt.Sprintf("%v%v", c.ColumnFrequency, c.Asc):
-						return ti.Frequency > tj.Frequency
-					case fmt.Sprintf("%v%v", c.ColumnFrequency, c.Desc):
-						return ti.Frequency < tj.Frequency
-
-					case fmt.Sprintf("%v%v", c.ColumnInterval, c.Asc):
-						return ti.Interval > tj.Interval
-					case fmt.Sprintf("%v%v", c.ColumnInterval, c.Desc):
-						return ti.Interval < tj.Interval
-					case fmt.Sprintf("%v%v", c.ColumnNote, c.Asc):
-						return strings.ToLower(ti.Note) > strings.ToLower(tj.Note)
-					case fmt.Sprintf("%v%v", c.ColumnNote, c.Desc):
-						return strings.ToLower(ti.Note) < strings.ToLower(tj.Note)
-
-					case fmt.Sprintf("%v%v", c.ColumnName, c.Asc):
-						return strings.ToLower(ti.Name) > strings.ToLower(tj.Name)
-					case fmt.Sprintf("%v%v", c.ColumnName, c.Desc):
-						return strings.ToLower(ti.Name) < strings.ToLower(tj.Name)
-
-					case fmt.Sprintf("%v%v", c.ColumnID, c.Asc):
-						return strings.ToLower(ti.ID) > strings.ToLower(tj.ID)
-					case fmt.Sprintf("%v%v", c.ColumnID, c.Desc):
-						return strings.ToLower(ti.ID) < strings.ToLower(tj.ID)
-
-					case fmt.Sprintf("%v%v", c.ColumnCreatedAt, c.Asc):
-						return tj.CreatedAt.After(tj.CreatedAt)
-					case fmt.Sprintf("%v%v", c.ColumnCreatedAt, c.Desc):
-						return ti.CreatedAt.Before(tj.CreatedAt)
-
-					case fmt.Sprintf("%v%v", c.ColumnUpdatedAt, c.Asc):
-						return ti.UpdatedAt.After(tj.UpdatedAt)
-					case fmt.Sprintf("%v%v", c.ColumnUpdatedAt, c.Desc):
-						return ti.UpdatedAt.Before(tj.UpdatedAt)
-
-					case fmt.Sprintf("%v%v", c.ColumnStarts, c.Asc):
-						ist := fmt.Sprintf("%v-%v-%v", tj.StartsYear, tj.StartsMonth, tj.StartsDay)
-						jst := fmt.Sprintf("%v-%v-%v", ti.StartsYear, ti.StartsMonth, ti.StartsDay)
-						return ist > jst
-					case fmt.Sprintf("%v%v", c.ColumnStarts, c.Desc):
-						ist := fmt.Sprintf("%v-%v-%v", tj.StartsYear, tj.StartsMonth, tj.StartsDay)
-						jst := fmt.Sprintf("%v-%v-%v", ti.StartsYear, ti.StartsMonth, ti.StartsDay)
-						return ist < jst
-
-					case fmt.Sprintf("%v%v", c.ColumnEnds, c.Asc):
-						jend := fmt.Sprintf("%v-%v-%v", tj.EndsYear, tj.EndsMonth, tj.EndsDay)
-						iend := fmt.Sprintf("%v-%v-%v", ti.EndsYear, ti.EndsMonth, ti.EndsDay)
-						return iend > jend
-					case fmt.Sprintf("%v%v", c.ColumnEnds, c.Desc):
-						jend := fmt.Sprintf("%v-%v-%v", tj.EndsYear, tj.EndsMonth, tj.EndsDay)
-						iend := fmt.Sprintf("%v-%v-%v", ti.EndsYear, ti.EndsMonth, ti.EndsDay)
-						return iend < jend
-
-					default:
-						return false
-						// return txs[j].Date.After(txs[i].Date)
-					}
-				},
-			)
+			sortTX()
 		}
 		// start by populating the table with the columns first
 		for i, tx := range selectedProfile.TX {
@@ -495,44 +646,52 @@ func getTransactionsTable() {
 				amountColor = c.COLOR_COLUMN_AMOUNT_POSITIVE
 			}
 
+			nameColor := c.COLOR_COLUMN_NAME
+			noteColor := c.COLOR_COLUMN_NOTE
+			if !tx.Active {
+				amountColor = c.COLOR_INACTIVE
+				nameColor = c.COLOR_INACTIVE
+				noteColor = c.COLOR_INACTIVE
+			}
+
 			cellOrder := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_ORDER, tx.Order)).SetAlign(tview.AlignCenter)
 			cellAmount := tview.NewTableCell(fmt.Sprintf("%v%v", amountColor, lib.FormatAsCurrency(tx.Amount))).SetAlign(tview.AlignCenter)
 
-			activeText := "X"
+			activeText := "✔"
 			if !tx.Active {
 				activeText = " "
 			}
 
 			cellActive := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_ACTIVE, activeText)).SetAlign(tview.AlignCenter)
-			cellName := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_NAME, tx.Name)).SetAlign(tview.AlignLeft)
+			cellName := tview.NewTableCell(fmt.Sprintf("%v%v", nameColor, tx.Name)).SetAlign(tview.AlignLeft)
 			cellFrequency := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_FREQUENCY, tx.Frequency)).SetAlign(tview.AlignCenter)
 			cellInterval := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_INTERVAL, tx.Interval)).SetAlign(tview.AlignCenter)
 
-			mondayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_MONDAY)
+			mondayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_MONDAY)
 			if !tx.HasWeekday(c.WeekdayMondayInt) {
 				mondayText = "[white] "
 			}
-			tuesdayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_TUESDAY)
+			tuesdayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_TUESDAY)
 			if !tx.HasWeekday(c.WeekdayTuesdayInt) {
 				tuesdayText = "[white] "
 			}
-			wednesdayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_WEDNESDAY)
+			wednesdayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_WEDNESDAY)
 			if !tx.HasWeekday(c.WeekdayWednesdayInt) {
 				wednesdayText = "[white] "
 			}
-			thursdayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_THURSDAY)
+			thursdayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_THURSDAY)
 			if !tx.HasWeekday(c.WeekdayThursdayInt) {
 				thursdayText = "[white] "
 			}
-			fridayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_FRIDAY)
+			fridayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_FRIDAY)
 			if !tx.HasWeekday(c.WeekdayFridayInt) {
 				fridayText = "[white] "
 			}
-			saturdayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_SATURDAY)
+			saturdayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_SATURDAY)
 			if !tx.HasWeekday(c.WeekdaySaturdayInt) {
 				saturdayText = "[white] "
 			}
-			sundayText := fmt.Sprintf("%vX", c.COLOR_COLUMN_SUNDAY)
+			sundayText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_SUNDAY)
 			if !tx.HasWeekday(c.WeekdaySundayInt) {
 				sundayText = "[white] "
 			}
@@ -548,7 +707,7 @@ func getTransactionsTable() {
 			cellStarts := tview.NewTableCell(fmt.Sprintf("%v%v-%v-%v", c.COLOR_COLUMN_STARTS, tx.StartsYear, tx.StartsMonth, tx.StartsDay)).SetAlign(tview.AlignCenter)
 			cellEnds := tview.NewTableCell(fmt.Sprintf("%v%v-%v-%v", c.COLOR_COLUMN_ENDS, tx.EndsYear, tx.EndsMonth, tx.EndsDay)).SetAlign(tview.AlignCenter)
 
-			cellNote := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_NOTE, tx.Note))
+			cellNote := tview.NewTableCell(fmt.Sprintf("%v%v", noteColor, tx.Note))
 
 			// cellID := tview.NewTableCell(fmt.Sprintf("%v%v", c.COLOR_COLUMN_ID, tx.ID))
 			// cellCreatedAt := tview.NewTableCell(fmt.Sprintf("[yellow]%v",fmt.Sprintf("%v", tx.CreatedAt)))
@@ -746,7 +905,7 @@ func getTransactionsTable() {
 				for j := range selectedProfile.TX {
 					if selectedProfile.TX[j].Selected || j == i {
 
-						activeText := "X"
+						activeText := "✔"
 						if !newValue {
 							activeText = " "
 						}
@@ -893,7 +1052,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_MONDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_MONDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdayMondayInt) {
 							cellText = "[white] "
 						}
@@ -923,7 +1082,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_TUESDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_TUESDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdayTuesdayInt) {
 							cellText = "[white] "
 						}
@@ -953,7 +1112,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_WEDNESDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_WEDNESDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdayWednesdayInt) {
 							cellText = "[white] "
 						}
@@ -983,7 +1142,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_THURSDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_THURSDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdayThursdayInt) {
 							cellText = "[white] "
 						}
@@ -1013,7 +1172,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_FRIDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_FRIDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdayFridayInt) {
 							cellText = "[white] "
 						}
@@ -1043,7 +1202,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_SATURDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_SATURDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdaySaturdayInt) {
 							cellText = "[white] "
 						}
@@ -1073,7 +1232,7 @@ func getTransactionsTable() {
 						}
 						sort.Ints(selectedProfile.TX[j].Weekdays)
 
-						cellText := fmt.Sprintf("%vX", c.COLOR_COLUMN_SUNDAY)
+						cellText := fmt.Sprintf("%v✔", c.COLOR_COLUMN_SUNDAY)
 						if !selectedProfile.TX[j].HasWeekday(c.WeekdaySundayInt) {
 							cellText = "[white] "
 						}
@@ -1387,7 +1546,7 @@ func activateTransactionsInputField(msg, value string) {
 	resetTransactionsInputFieldAutocomplete()
 
 	transactionsInputField.SetFieldBackgroundColor(tcell.ColorDimGray)
-	transactionsInputField.SetLabel(fmt.Sprintf("[aqua] %v", msg))
+	transactionsInputField.SetLabel(fmt.Sprintf("[lightgreen::b] %v[-:-:-:-]", msg))
 	transactionsInputField.SetText(value)
 
 	// don't mess with the previously stored focus if the text field is already
@@ -1407,7 +1566,7 @@ func activateTransactionsInputField(msg, value string) {
 // an infinite loop, so this function does not call it
 func activateTransactionsInputFieldNoAutocompleteReset(msg, value string) {
 	transactionsInputField.SetFieldBackgroundColor(tcell.ColorDimGray)
-	transactionsInputField.SetLabel(fmt.Sprintf("[aqua] %v", msg))
+	transactionsInputField.SetLabel(fmt.Sprintf("[lightgreen::b] %v[-:-:-:-]", msg))
 	transactionsInputField.SetText(value)
 
 	// don't mess with the previously stored focus if the text field is already
@@ -1529,6 +1688,12 @@ func modified() {
 			undoBuffer = slices.Delete(undoBuffer, undoBufferPos, len(undoBuffer))
 		}
 
+		err := lib.ValidateTransactions(&selectedProfile.TX)
+		if err != nil {
+			statusText.SetText("[red] unable to auto-order")
+		}
+		getTransactionsTable()
+
 		// now that we've ensured that we are actually at the end of the buffer,
 		// proceed to insert this config into the undoBuffer
 		b, err := yaml.Marshal(config)
@@ -1558,7 +1723,20 @@ func modified() {
 func getProfilesFlex() {
 	profileList = tview.NewList()
 	profileList.SetBorder(true)
-	profileList.ShowSecondaryText(false)
+	profileList.ShowSecondaryText(false).
+		SetSelectedBackgroundColor(tcell.NewRGBColor(50, 50, 50)).
+		SetSelectedTextColor(tcell.ColorWhite).
+		SetTitle("Profiles")
+
+	// TODO: doesn't work as well as expected; an infinite loop will occur in
+	// some cases, and in other cases, we can't set the text of the profileList
+	// items
+	// profileList.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+	// 	selectedProfile = &(config.Profiles[index])
+	// 	// populateProfilesPage(true, true)
+	// 	getTransactionsTable()
+	// 	// app.SetFocus(transactionsTable)
+	// })
 
 	statusText = tview.NewTextView()
 	statusText.SetBorder(true)
@@ -1579,13 +1757,11 @@ func getProfilesFlex() {
 	transactionsInputField.SetFieldBackgroundColor(tcell.ColorBlack)
 	transactionsInputField.SetLabel("[gray] editor appears here when editing")
 
+	populateProfilesPage(true, true)
 	getTransactionsTable()
 
 	transactionsPage.AddItem(transactionsTable, 0, 1, false).
 		AddItem(transactionsInputField, 3, 0, false)
-
-	populateProfilesPage(true, true)
-	getTransactionsTable()
 
 	profilesPage = tview.NewFlex().SetDirection(tview.FlexColumn)
 	profilesPage.AddItem(profilesLeftSide, 0, 1, true).
@@ -1648,13 +1824,14 @@ func getResultsFlex() {
 			return true
 		}, func(text string) { resultsFormEndDay = text }).
 		AddInputField("Starting Balance:", lib.FormatAsCurrency(resultsFormAmount), 0, nil, func(text string) {
-			resultsFormAmount = int(lib.ParseDollarAmount(text, false))
+			resultsFormAmount = int(lib.ParseDollarAmount(text, true))
 		}).
 		AddButton("Submit", func() {
 			getResultsTable()
 		})
 
 	resultsForm.SetLabelColor(tcell.ColorViolet)
+	resultsForm.SetFieldBackgroundColor(tcell.NewRGBColor(40, 40, 40))
 	resultsForm.SetBorder(true)
 	resultsTable.SetTitle("Results")
 	resultsTable.SetBorders(false).
@@ -1700,15 +1877,15 @@ func getResultsTable() {
 	latestResults = &results
 
 	// set up headers
-	hDate := tview.NewTableCell(c.ColumnDate)
-	hBalance := tview.NewTableCell(c.ColumnBalance)
-	hCumulativeIncome := tview.NewTableCell(c.ColumnCumulativeIncome)
-	hCumulativeExpenses := tview.NewTableCell(c.ColumnCumulativeExpenses)
-	hDayExpenses := tview.NewTableCell(c.ColumnDayExpenses)
-	hDayIncome := tview.NewTableCell(c.ColumnDayIncome)
-	hDayNet := tview.NewTableCell(c.ColumnDayNet)
-	hDiffFromStart := tview.NewTableCell(c.ColumnDiffFromStart)
-	hDayTransactionNames := tview.NewTableCell(c.ColumnDayTransactionNames)
+	hDate := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DATE, c.ColumnDate, c.RESET_STYLE))
+	hBalance := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_BALANCE, c.ColumnBalance, c.RESET_STYLE))
+	hCumulativeIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_CUMULATIVEINCOME, c.ColumnCumulativeIncome, c.RESET_STYLE))
+	hCumulativeExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_CUMULATIVEEXPENSES, c.ColumnCumulativeExpenses, c.RESET_STYLE))
+	hDayExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYEXPENSES, c.ColumnDayExpenses, c.RESET_STYLE))
+	hDayIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYINCOME, c.ColumnDayIncome, c.RESET_STYLE))
+	hDayNet := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYNET, c.ColumnDayNet, c.RESET_STYLE))
+	hDiffFromStart := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DIFFFROMSTART, c.ColumnDiffFromStart, c.RESET_STYLE))
+	hDayTransactionNames := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYTRANSACTIONNAMES, c.ColumnDayTransactionNames, c.RESET_STYLE))
 
 	resultsTable.SetCell(0, 0, hDate)
 	resultsTable.SetCell(0, 1, hBalance)
@@ -1723,27 +1900,17 @@ func getResultsTable() {
 
 	// now add the remaining rows
 	for i := range results {
-		rDate := tview.NewTableCell(lib.FormatAsDate(results[i].Date))
-		rBalance := tview.NewTableCell(lib.FormatAsCurrency(results[i].Balance))
-		rCumulativeIncome := tview.NewTableCell(lib.FormatAsCurrency(results[i].CumulativeIncome))
-		rCumulativeExpenses := tview.NewTableCell(lib.FormatAsCurrency(results[i].CumulativeExpenses))
-		rDayExpenses := tview.NewTableCell(lib.FormatAsCurrency(results[i].DayExpenses))
-		rDayIncome := tview.NewTableCell(lib.FormatAsCurrency(results[i].DayIncome))
-		rDayNet := tview.NewTableCell(lib.FormatAsCurrency(results[i].DayNet))
-		rDiffFromStart := tview.NewTableCell(lib.FormatAsCurrency(results[i].DiffFromStart))
-		rDayTransactionNames := tview.NewTableCell(results[i].DayTransactionNames)
+		rDate := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DATE, lib.FormatAsDate(results[i].Date), c.RESET_STYLE))
+		rBalance := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_BALANCE, lib.FormatAsCurrency(results[i].Balance), c.RESET_STYLE))
+		rCumulativeIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_CUMULATIVEINCOME, lib.FormatAsCurrency(results[i].CumulativeIncome), c.RESET_STYLE))
+		rCumulativeExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_CUMULATIVEEXPENSES, lib.FormatAsCurrency(results[i].CumulativeExpenses), c.RESET_STYLE))
+		rDayExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYEXPENSES, lib.FormatAsCurrency(results[i].DayExpenses), c.RESET_STYLE))
+		rDayIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYINCOME, lib.FormatAsCurrency(results[i].DayIncome), c.RESET_STYLE))
+		rDayNet := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYNET, lib.FormatAsCurrency(results[i].DayNet), c.RESET_STYLE))
+		rDiffFromStart := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DIFFFROMSTART, lib.FormatAsCurrency(results[i].DiffFromStart), c.RESET_STYLE))
+		rDayTransactionNames := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.COLOR_COLUMN_RESULTS_DAYTRANSACTIONNAMES, results[i].DayTransactionNames, c.RESET_STYLE))
 
 		rDayTransactionNames.SetExpansion(1)
-
-		rDate.SetTextColor(tcell.ColorWhite)
-		rBalance.SetTextColor(tcell.ColorWhite)
-		rCumulativeIncome.SetTextColor(tcell.ColorWhite)
-		rCumulativeExpenses.SetTextColor(tcell.ColorWhite)
-		rDayExpenses.SetTextColor(tcell.ColorWhite)
-		rDayIncome.SetTextColor(tcell.ColorWhite)
-		rDayNet.SetTextColor(tcell.ColorWhite)
-		rDiffFromStart.SetTextColor(tcell.ColorWhite)
-		rDayTransactionNames.SetTextColor(tcell.ColorWhite)
 
 		resultsTable.SetCell(i+1, 0, rDate)
 		resultsTable.SetCell(i+1, 1, rBalance)
@@ -1771,11 +1938,48 @@ func getResultsTable() {
 		}
 	})
 
-	// resultsTable.SetBorders(false)
-	// SetSelectable(true, false). // set row & cells to be selectable
-	// SetSeparator(' ')
-
 	app.SetFocus(resultsTable)
+}
+
+func promptExit() {
+	// check if we are already prompting
+	currentPage, _ := pages.GetFrontPage()
+	if currentPage == PAGE_PROMPT {
+		return
+	}
+
+	// now check if the previous page is something other than the prompt already
+	previousPage, _ = pages.GetFrontPage()
+	if previousPage == PAGE_PROMPT {
+		return
+	}
+
+	promptBox.ClearButtons().AddButtons(
+		[]string{
+			"I am sure, please exit",
+			"No",
+			"Cancel",
+		},
+	).SetText("Really quit?").SetDoneFunc(
+		func(buttonIndex int, buttonLabel string) {
+			switch buttonIndex {
+			case 0:
+				app.Stop()
+			case 1:
+				fallthrough
+			case 2:
+				fallthrough
+			default:
+				pages.SwitchToPage(previousPage)
+				return
+			}
+		},
+	).SetBackgroundColor(tcell.ColorGoldenrod).
+		SetTextColor(tcell.ColorBlack) //.
+	// SetButtonTextColor(tcell.ColorGray) //.
+	// SetButtonBackgroundColor(tcell.NewRGBColor(100, 100, 100))
+
+	pages.SwitchToPage(PAGE_PROMPT)
 }
 
 func main() {
@@ -1787,6 +1991,13 @@ func main() {
 	}
 
 	if len(config.Profiles) > 0 {
+		selectedProfile = &(config.Profiles[0])
+	} else {
+		n := Profile{
+			TX:   []lib.TX{lib.GetNewTX()},
+			Name: "New Profile Name",
+		}
+		config.Profiles = append(config.Profiles, n)
 		selectedProfile = &(config.Profiles[0])
 	}
 
@@ -1816,9 +2027,12 @@ func main() {
 	getResultsFlex()
 	getHelpModal()
 
+	promptBox = tview.NewModal()
+
 	pages.AddPage(PAGE_PROFILES, profilesPage, true, true).
 		AddPage(PAGE_RESULTS, resultsPage, true, true).
-		AddPage(PAGE_HELP, helpModal, true, true)
+		AddPage(PAGE_HELP, helpModal, true, true).
+		AddPage(PAGE_PROMPT, promptBox, true, true)
 
 	pages.SwitchToPage(PAGE_PROFILES)
 
@@ -1861,17 +2075,43 @@ func main() {
 			case resultsForm:
 				return e
 			default:
-				setBottomHelpText()
 				pages.SwitchToPage(PAGE_HELP)
+				setBottomHelpText()
 			}
 		} else if e.Key() == tcell.KeyF2 {
+			p, _ := pages.GetFrontPage()
+			alreadyOnPage := false
+			if p == PAGE_PROFILES {
+				alreadyOnPage = true
+			}
 			pages.SwitchToPage(PAGE_PROFILES)
 			setBottomHelpText()
+			if alreadyOnPage {
+				app.SetFocus(profileList)
+			}
 			return nil
 		} else if e.Key() == tcell.KeyF3 {
+			// if the user is already on the results page, focus the
+			// text view description instead
+			p, _ := pages.GetFrontPage()
+			alreadyOnPage := false
+			if p == PAGE_RESULTS {
+				alreadyOnPage = true
+			}
 			getResultsTable()
 			pages.SwitchToPage(PAGE_RESULTS)
 			setBottomHelpText()
+			if latestResults == nil {
+				return e
+			}
+			stats, err := lib.GetStats(*latestResults)
+			if err != nil {
+				return nil
+			}
+			resultsDescription.SetText(stats)
+			if alreadyOnPage {
+				app.SetFocus(resultsTable)
+			}
 			return nil
 		} else if e.Key() == tcell.KeyEscape {
 			currentFocus := app.GetFocus()
@@ -1912,12 +2152,8 @@ func main() {
 				pages.SwitchToPage(PAGE_PROFILES)
 				return nil
 			default:
-				page, _ := pages.GetFrontPage()
-				if page == PAGE_RESULTS {
-					pages.SwitchToPage(PAGE_PROFILES)
-					return nil
-				}
-				app.Stop()
+				promptExit()
+				return nil
 			}
 
 			// if isSearching {
@@ -1979,16 +2215,21 @@ func main() {
 					cr, cc := transactionsTable.GetSelection()
 					nc := cc + 1
 					nr := cr
+					var focusTarget tview.Primitive
+					focusTarget = transactionsTable
 					if nc > c {
-						nc -= 1
+						nc = 0 // loop around
 						nr += 1
 						if nr > r {
 							nc = 0
-							nr = 0
+							nr = r
 						}
+						// it's more intuitive to go back to the profileList
+						// when backtabbing from the first column in the table
+						focusTarget = profileList
 					}
 					transactionsTable.Select(nr, nc)
-					app.SetFocus(transactionsTable)
+					app.SetFocus(focusTarget)
 				default:
 					app.SetFocus(profileList)
 				}
@@ -2015,21 +2256,28 @@ func main() {
 					app.SetFocus(transactionsTable)
 				case transactionsTable:
 					// get the height & width of the transactions table
-					r := transactionsTable.GetRowCount() - 1
+					// r := transactionsTable.GetRowCount() - 1
 					c := transactionsTable.GetColumnCount() - 1
 					cr, cc := transactionsTable.GetSelection()
 					nc := cc - 1
 					nr := cr
-					if nc <= 0 {
-						nc += 1
+					var focusTarget tview.Primitive
+					focusTarget = transactionsTable
+					if nc < 0 {
+						nc = c
 						nr -= 1
-						if nr <= 0 {
-							nc = c
-							nr = r
+						if nr < 0 {
+							// nc = c
+							nc = 0
+							// nr = r
+							nr = 0
 						}
+						// it's more intuitive to go back to the profileList
+						// when backtabbing from the first column in the table
+						focusTarget = profileList
 					}
 					transactionsTable.Select(nr, nc)
-					app.SetFocus(transactionsTable)
+					app.SetFocus(focusTarget)
 				default:
 					app.SetFocus(profileList)
 				}
@@ -2167,13 +2415,17 @@ func main() {
 				return e
 			}
 		} else if e.Key() == tcell.KeyCtrlS {
+			if config.Version == "" {
+				config.Version = c.CONFIG_VERSION
+			}
+
 			b, err := yaml.Marshal(config)
 			if err != nil {
 				statusText.SetText("failed to marshal")
 				return nil
 			}
 
-			err = os.WriteFile("config.yml", b, os.FileMode(0o644))
+			err = os.WriteFile(configFile, b, os.FileMode(0o644))
 			if err != nil {
 				statusText.SetText("failed to save")
 				return nil
@@ -2378,6 +2630,62 @@ func main() {
 					getTransactionsTable()
 					transactionsTable.Select(cr, cc)
 					app.SetFocus(transactionsTable)
+				case profileList:
+					if len(config.Profiles) <= 1 {
+						statusText.SetText("[gray] can't delete last profile")
+						return nil
+					}
+					getPrompt := func() string {
+						if selectedProfile == nil {
+							return "no profile selected; please cancel this operation"
+						}
+						return fmt.Sprintf(
+							"[gold::b]confirm deletion of profile %v by typing 'delete %v':%v",
+							selectedProfile.Name,
+							selectedProfile.Name,
+							c.RESET_STYLE,
+						)
+					}
+					transactionsInputField.SetDoneFunc(func(key tcell.Key) {
+						switch key {
+						case tcell.KeyEscape:
+							// don't save the changes
+							deactivateTransactionsInputField()
+							return
+						default:
+							// validate that the name is unique
+							value := transactionsInputField.GetText()
+							if strings.Index(value, "delete ") != 0 {
+								transactionsInputField.SetLabel(getPrompt())
+								return
+							}
+
+							profileName := strings.TrimPrefix(value, "delete ")
+							if profileName != selectedProfile.Name {
+								transactionsInputField.SetLabel(getPrompt())
+								return
+							}
+
+							// proceed to delete the profile
+							for i := range config.Profiles {
+								if profileName == config.Profiles[i].Name {
+									config.Profiles = slices.Delete(config.Profiles, i, i+1)
+									return
+								}
+							}
+
+							selectedProfile = &(config.Profiles[0])
+
+							// config.Profiles = append(config.Profiles, newProfile)
+							modified()
+							deactivateTransactionsInputField()
+							populateProfilesPage(true, true)
+							getTransactionsTable()
+							transactionsTable.Select(0, 0)
+							app.SetFocus(profileList)
+						}
+					})
+					activateTransactionsInputField(getPrompt(), "")
 				default:
 					app.SetFocus(profileList)
 				}
@@ -2532,6 +2840,9 @@ func main() {
 			case PAGE_RESULTS:
 				return e
 			}
+		} else if e.Key() == tcell.KeyCtrlC {
+			promptExit()
+			return nil
 		} else if e.Key() == tcell.KeyCtrlZ {
 			pageName, _ := pages.GetFrontPage()
 			switch pageName {
@@ -2562,12 +2873,6 @@ func main() {
 			case PAGE_RESULTS:
 				return e
 			}
-		} else if e.Key() == tcell.KeyCtrlI {
-			stats, err := lib.GetStats(*latestResults)
-			if err != nil {
-				return nil
-			}
-			resultsDescription.SetText(stats)
 		} else {
 			// if isSearching {
 			// 	setBottomLeftText("[aqua]searching:")

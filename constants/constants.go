@@ -38,7 +38,11 @@ const (
 	None = "none"
 	Desc = "Desc"
 	Asc  = "Asc"
+
+	CONFIG_VERSION = "1"
 )
+
+const RESET_STYLE = "[-:-:-:-]"
 
 const (
 	WeekdayMondayInt = iota
@@ -74,11 +78,11 @@ const (
 
 const (
 	COLOR_COLUMN_ORDER     = "[gray]"
-	COLOR_COLUMN_AMOUNT    = "[yellow]"
-	COLOR_COLUMN_ACTIVE    = "[gray]"
+	COLOR_COLUMN_AMOUNT    = "[gold]"
+	COLOR_COLUMN_ACTIVE    = "[#8899dd]"
 	COLOR_COLUMN_NAME      = "[blue]"
-	COLOR_COLUMN_FREQUENCY = "[aqua]"
-	COLOR_COLUMN_INTERVAL  = "[white]"
+	COLOR_COLUMN_FREQUENCY = "[#70dd70]"
+	COLOR_COLUMN_INTERVAL  = "[#de9a9a]"
 	COLOR_COLUMN_MONDAY    = "[red]"
 	COLOR_COLUMN_TUESDAY   = "[orange]"
 	COLOR_COLUMN_WEDNESDAY = "[yellow]"
@@ -86,14 +90,16 @@ const (
 	COLOR_COLUMN_FRIDAY    = "[blue]"
 	COLOR_COLUMN_SATURDAY  = "[indigo]"
 	COLOR_COLUMN_SUNDAY    = "[violet]"
-	COLOR_COLUMN_STARTS    = "[aqua]"
-	COLOR_COLUMN_ENDS      = "[blue]"
+	COLOR_COLUMN_STARTS    = "[#aaffaa]"
+	COLOR_COLUMN_ENDS      = "[#aaffee]"
 	COLOR_COLUMN_NOTE      = "[white]"
 	COLOR_COLUMN_ID        = "[gray]"
 	COLOR_COLUMN_CREATEDAT = "[blue]"
 	COLOR_COLUMN_UPDATEDAT = "[blue]"
 
-	COLOR_COLUMN_AMOUNT_POSITIVE = "[green]"
+	COLOR_INACTIVE = "[gray::i]"
+
+	COLOR_COLUMN_AMOUNT_POSITIVE = "[lightgreen]"
 )
 
 // results page values
@@ -108,6 +114,16 @@ const (
 	ColumnDayNet              = "DayNet"
 	ColumnDiffFromStart       = "DiffFromStart"
 	ColumnDayTransactionNames = "DayTransactionNames"
+
+	COLOR_COLUMN_RESULTS_DATE                = "[#8899dd]"
+	COLOR_COLUMN_RESULTS_BALANCE             = "[white::b]"
+	COLOR_COLUMN_RESULTS_CUMULATIVEINCOME    = "[lightgreen]"
+	COLOR_COLUMN_RESULTS_CUMULATIVEEXPENSES  = "[gold]"
+	COLOR_COLUMN_RESULTS_DAYEXPENSES         = "[orange]"
+	COLOR_COLUMN_RESULTS_DAYINCOME           = "[lightgreen]"
+	COLOR_COLUMN_RESULTS_DAYNET              = "[#cccccc]"
+	COLOR_COLUMN_RESULTS_DIFFFROMSTART       = "[lightgoldenrodyellow]"
+	COLOR_COLUMN_RESULTS_DAYTRANSACTIONNAMES = "[smoke]"
 )
 
 const (
