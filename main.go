@@ -15,7 +15,9 @@ import (
 	"time"
 
 	c "finance-planner-tui/constants"
+
 	"finance-planner-tui/lib"
+	m "finance-planner-tui/models"
 
 	"github.com/adrg/xdg"
 	"github.com/gdamore/tcell/v2"
@@ -26,26 +28,18 @@ import (
 )
 
 const (
-	// old
-	maxLogLines = 10000
-	BOX_LIST    = "list"
-	BOX_STDOUT  = "stdout"
-	BOX_STDERR  = "stderr"
-
 	// new
 	PAGE_PROFILES = "Profiles"
 	PAGE_RESULTS  = "Results"
 	PAGE_HELP     = "Help"
 	PAGE_PROMPT   = "Prompt"
-
-	UNDO_BUFFER_MAX_LEN = 1000
 )
 
 var (
 	app                         *tview.Application
 	layout                      *tview.Flex
-	config                      Config
-	selectedProfile             *Profile
+	config                      m.Config
+	selectedProfile             *m.Profile
 	previousPage                string
 	pages                       *tview.Pages
 	currentlyFocusedBox         string
@@ -54,6 +48,10 @@ var (
 	resultsPage                 *tview.Flex
 	transactionsTableSortColumn string
 	lastSelectedIndex           int
+
+	// usage example: loadedKeybindings["Ctrl+Z"] = ["undo", "save"]
+	loadedKeybindings map[string][]string
+
 	// the previously focused primitive
 	previous tview.Primitive
 	// profilesPage items:
@@ -73,7 +71,7 @@ var (
 	resultsFormEndYear    string
 	resultsFormEndMonth   string
 	resultsFormEndDay     string
-	resultsFormAmount     int
+	resultsFormAmount     string
 	// help page
 	helpModal      *tview.TextView
 	bottomHelpText *tview.TextView
@@ -84,43 +82,26 @@ var (
 	undoBufferPos int
 
 	// flags
-	configFile    string
-	shouldMigrate bool
+	configFile       string
+	shouldMigrate    bool
+	keyboardEchoMode bool
 )
-
-type Profile struct {
-	TX             []lib.TX `yaml:"transactions"`
-	Name           string   `yaml:"name"`
-	modified       bool
-	SelectedRow    int `yaml:"selectedRow"`
-	SelectedColumn int `yaml:"selectedColumn"`
-}
-
-type Config struct {
-	Keybindings []Keybinding `yaml:"keybindings"`
-	Profiles    []Profile    `yaml:"profiles"`
-	Version     string
-}
-
-type Keybinding struct {
-	Action     string
-	Keybinding string
-}
-
-func getHelpModal() {
-	helpModal = tview.NewTextView()
-	helpModal.SetBorder(true)
-	helpModal.SetText(c.HelpText).SetDynamicColors(true)
-}
 
 func init() {
 	flag.StringVar(&configFile, "f", "config.yml", "the file to load from and save to")
 	flag.BoolVar(&shouldMigrate, "migrate", false, "whether or not to migrate a file named conf.json in the current directory from a previous config version to the latest version and save it as migrated.yml")
+	flag.BoolVar(&keyboardEchoMode, "kb", false, "if true, all keyboard inputs except escape and ctrl+c will be echoed to the bottom left text field of the page. Use this mode to test your preferred keyboard mappings - take the exact text and put it into your keybindings configuration.")
 	flag.Parse()
 
 	if shouldMigrate {
 		JSONtoYAML()
 	}
+}
+
+func getHelpModal() {
+	helpModal = tview.NewTextView()
+	helpModal.SetBorder(true)
+	helpModal.SetText(getHelpText(config)).SetDynamicColors(true)
 }
 
 func setBottomHelpText() {
@@ -151,7 +132,7 @@ func setBottomHelpText() {
 	// return "[white][F3][gray] results [white][ctrl+s][gray] save"
 }
 
-func loadConfig() (c Config, err error) {
+func loadConfig() (c m.Config, err error) {
 	xdgConfig := path.Join(xdg.ConfigHome, "frequencmd", "config.yml")
 	xdgHome := path.Join(xdg.Home, "frequencmd", "config.yml")
 
@@ -196,13 +177,17 @@ func loadConfig() (c Config, err error) {
 		return c, nil
 	}
 
-	return c, fmt.Errorf(
-		"failed to read config from %v, %v, and %v: %v",
-		configFile,
-		xdgConfig,
-		xdgHome,
-		err.Error(),
-	)
+	// if the config file doesn't exist, create it at xdgHome
+	configFile = xdgHome
+	return c, nil
+
+	// return c, fmt.Errorf(
+	// 	"failed to read config from %v, %v, and %v: %v",
+	// 	configFile,
+	// 	xdgConfig,
+	// 	xdgHome,
+	// 	err.Error(),
+	// )
 }
 
 // converts a json file to yaml (one-off job for converting from legacy versions
@@ -213,8 +198,8 @@ func JSONtoYAML() {
 		log.Fatalf("failed to load conf.json")
 	}
 
-	nc := Config{
-		Profiles: []Profile{
+	nc := m.Config{
+		Profiles: []m.Profile{
 			{
 				Name: "migrated",
 				TX:   []lib.TX{},
@@ -243,7 +228,7 @@ func getNowStr() string {
 	return time.Now().Format("15:04:05")
 }
 
-func getActiveProfileText(profile Profile) string {
+func getActiveProfileText(profile m.Profile) string {
 	profileText := fmt.Sprintf("%v", profile.Name)
 	if selectedProfile != nil && selectedProfile.Name == profile.Name {
 		profileText = fmt.Sprintf("[white::bu]%v (open)%v", profile.Name, c.RESET_STYLE)
@@ -1656,7 +1641,7 @@ func redo() {
 // also updates the status text accordingly
 func modified() {
 	if selectedProfile != nil {
-		selectedProfile.modified = true
+		selectedProfile.Modified = true
 		cr, cc := transactionsTable.GetSelection()
 		selectedProfile.SelectedColumn = cc
 		selectedProfile.SelectedRow = cr
@@ -1773,19 +1758,18 @@ func setTransactionsTableSort(column string) {
 	defer getTransactionsTable()
 }
 
-func getResultsFlex() {
-	resultsTable = tview.NewTable().SetFixed(1, 1)
-	resultsTable.SetBorder(true)
-	resultsDescription = tview.NewTextView()
-	resultsDescription.SetBorder(true)
-	resultsDescription.SetDynamicColors(true)
-
-	resultsForm = tview.NewForm().
+// completely rebuilds the results form, safe to run repeatedly
+func updateResultsForm() {
+	resultsForm.Clear(true)
+	resultsForm.SetTitle("Parameters")
+	getDefaultsForResultsForm()
+	resultsForm.
 		AddInputField("Start Year:", resultsFormStartYear, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 0 {
 				return false
 			}
+			syncResultsFormWithProfile()
 			return true
 		}, func(text string) { resultsFormStartYear = text }).
 		AddInputField("Start Month:", resultsFormStartMonth, 0, func(textToCheck string, lastChar rune) bool {
@@ -1793,6 +1777,7 @@ func getResultsFlex() {
 			if err != nil || i < 1 || i > 12 {
 				return false
 			}
+			syncResultsFormWithProfile()
 			return true
 		}, func(text string) { resultsFormStartMonth = text }).
 		AddInputField("Start Day:", resultsFormStartDay, 0, func(textToCheck string, lastChar rune) bool {
@@ -1800,6 +1785,7 @@ func getResultsFlex() {
 			if err != nil || i < 0 || i > 31 {
 				return false
 			}
+			syncResultsFormWithProfile()
 			return true
 		}, func(text string) { resultsFormStartDay = text }).
 		AddInputField("End Year:", resultsFormEndYear, 0, func(textToCheck string, lastChar rune) bool {
@@ -1807,6 +1793,7 @@ func getResultsFlex() {
 			if err != nil || i < 0 {
 				return false
 			}
+			syncResultsFormWithProfile()
 			return true
 		}, func(text string) { resultsFormEndYear = text }).
 		AddInputField("End Month:", resultsFormEndMonth, 0, func(textToCheck string, lastChar rune) bool {
@@ -1814,6 +1801,7 @@ func getResultsFlex() {
 			if err != nil || i < 1 || i > 12 {
 				return false
 			}
+			syncResultsFormWithProfile()
 			return true
 		}, func(text string) { resultsFormEndMonth = text }).
 		AddInputField("End Day:", resultsFormEndDay, 0, func(textToCheck string, lastChar rune) bool {
@@ -1821,18 +1809,42 @@ func getResultsFlex() {
 			if err != nil || i < 0 || i > 31 {
 				return false
 			}
+			syncResultsFormWithProfile()
 			return true
 		}, func(text string) { resultsFormEndDay = text }).
-		AddInputField("Starting Balance:", lib.FormatAsCurrency(resultsFormAmount), 0, nil, func(text string) {
-			resultsFormAmount = int(lib.ParseDollarAmount(text, true))
+		AddInputField("Starting Balance:", resultsFormAmount, 0, nil, func(text string) {
+			resultsFormAmount = lib.FormatAsCurrency(int(lib.ParseDollarAmount(text, true)))
+			syncResultsFormWithProfile()
 		}).
 		AddButton("Submit", func() {
+			getResultsTable()
+		}).
+		AddButton("1 year", func() {
+			setResultsFormPreset(c.START_TODAY_PRESET, c.ONE_YR)
+			updateResultsForm()
+			getResultsTable()
+		}).
+		AddButton("5 years", func() {
+			setResultsFormPreset(c.START_TODAY_PRESET, c.FIVE_YR)
+			updateResultsForm()
 			getResultsTable()
 		})
 
 	resultsForm.SetLabelColor(tcell.ColorViolet)
 	resultsForm.SetFieldBackgroundColor(tcell.NewRGBColor(40, 40, 40))
 	resultsForm.SetBorder(true)
+}
+
+func getResultsFlex() {
+	resultsTable = tview.NewTable().SetFixed(1, 1)
+	resultsTable.SetBorder(true)
+	resultsDescription = tview.NewTextView()
+	resultsDescription.SetBorder(true)
+	resultsDescription.SetDynamicColors(true)
+
+	resultsForm = tview.NewForm()
+	updateResultsForm()
+
 	resultsTable.SetTitle("Results")
 	resultsTable.SetBorders(false).
 		SetSelectable(true, false). // set row & cells to be selectable
@@ -1849,13 +1861,107 @@ func getResultsFlex() {
 	resultsPage.AddItem(resultsForm, 0, 1, true).AddItem(resultsRightSide, 0, 3, false)
 }
 
+// Allows a simple button press to set the start & end dates to various common
+// use cases. For example, start from today and end 1 year or 5 years from now.
+//
+// TODO: implement other start date logic - currently only supports today
+func setResultsFormPreset(startDate string, endDate string) {
+	var start time.Time
+	switch startDate {
+	case c.START_TODAY_PRESET:
+		fallthrough
+	default:
+		start = time.Now()
+		break
+	}
+
+	var end time.Time
+	switch endDate {
+	case c.ONE_YR:
+		end = start.Add(time.Hour * 24 * 365)
+	case c.FIVE_YR:
+		end = start.Add(time.Hour * 24 * 365 * 5)
+	}
+
+	resultsFormStartYear = fmt.Sprint(start.Year())
+	resultsFormStartMonth = fmt.Sprint(int(start.Month()))
+	resultsFormStartDay = fmt.Sprint(start.Day())
+
+	resultsFormEndYear = fmt.Sprint(end.Year())
+	resultsFormEndMonth = fmt.Sprint(int(end.Month()))
+	resultsFormEndDay = fmt.Sprint(end.Day())
+
+	syncResultsFormWithProfile()
+}
+
+func getDefaultsForResultsForm() {
+	noProfile := selectedProfile == nil
+
+	now := time.Now()
+	yr := now.Add(time.Hour * 24 * 365)
+
+	if !noProfile {
+		resultsFormStartYear = selectedProfile.StartYear
+		resultsFormStartMonth = selectedProfile.StartMonth
+		resultsFormStartDay = selectedProfile.StartDay
+		resultsFormEndYear = selectedProfile.EndYear
+		resultsFormEndMonth = selectedProfile.EndMonth
+		resultsFormEndDay = selectedProfile.EndDay
+		resultsFormAmount = selectedProfile.StartingBalance
+	}
+
+	if noProfile || selectedProfile.StartYear == "" {
+		resultsFormStartYear = fmt.Sprint(now.Year())
+	}
+	if noProfile || selectedProfile.StartMonth == "" {
+		resultsFormStartMonth = fmt.Sprint(int(now.Month()))
+	}
+	if noProfile || selectedProfile.StartDay == "" {
+		resultsFormStartDay = fmt.Sprint(now.Day())
+	}
+
+	if noProfile || selectedProfile.EndYear == "" {
+		resultsFormEndYear = fmt.Sprint(yr.Year())
+	}
+	if noProfile || selectedProfile.EndMonth == "" {
+		resultsFormEndMonth = fmt.Sprint(int(yr.Month()))
+	}
+	if noProfile || selectedProfile.EndDay == "" {
+		resultsFormEndDay = fmt.Sprint(yr.Day())
+	}
+
+	if noProfile || selectedProfile.StartingBalance == "" {
+		resultsFormAmount = lib.FormatAsCurrency(50000)
+	}
+
+	syncResultsFormWithProfile()
+}
+
+// persists values from the results form's input fields to the selectedProfile
+// so they can be saved to configuration for later recall
+func syncResultsFormWithProfile() {
+	if selectedProfile == nil {
+		return
+	}
+
+	selectedProfile.StartingBalance = resultsFormAmount
+	selectedProfile.StartDay = resultsFormStartDay
+	selectedProfile.StartMonth = resultsFormStartMonth
+	selectedProfile.StartYear = resultsFormStartYear
+	selectedProfile.EndDay = resultsFormEndDay
+	selectedProfile.EndMonth = resultsFormEndMonth
+	selectedProfile.EndYear = resultsFormEndYear
+}
+
 func getResultsTable() {
 	resultsTable.Clear()
+
+	getDefaultsForResultsForm()
 
 	// get results
 	results, err := lib.GenerateResultsFromDateStrings(
 		&(selectedProfile.TX),
-		resultsFormAmount,
+		int(lib.ParseDollarAmount(resultsFormAmount, true)),
 		fmt.Sprintf(
 			"%v-%v-%v",
 			resultsFormStartYear,
@@ -1980,6 +2086,887 @@ func promptExit() {
 	// SetButtonBackgroundColor(tcell.NewRGBColor(100, 100, 100))
 
 	pages.SwitchToPage(PAGE_PROMPT)
+	promptBox.SetFocus(2)
+	app.SetFocus(promptBox)
+}
+
+// switches to the prompt page and shows a modal that informs the user that they
+// are in keyboard echo mode. If KB echo mode is not enabled, this gracefully
+// returns immediately and does nothing.
+func promptKBMode() {
+	if !keyboardEchoMode {
+		return
+	}
+
+	// temporarily turn off KB echo mode so that the user's keys are captured
+	// properly until they can give consent to entering the mode
+	keyboardEchoMode = false
+
+	promptBox.ClearButtons().AddButtons(
+		[]string{
+			"Turn off",
+			"Exit Now",
+			"Continue",
+		},
+	).SetText(
+		"You have started this application in keyboard echo mode. If you choose to continue, all of your key presses will be shown in the bottom left status bar. You can press Escape or Ctrl+C at any time to quit.\n\nThese keyboard shortcuts are directly to be entered into your configuration for customization as shown, such as 'Rune[R[]'. If you wish to later remap the Escape key, use the string 'Esc', and for Ctrl+C, use the string 'Ctrl+C' in your configuration. Note that when in keyboard echoing mode, Ctrl+C and Escape are permanently mapped and cannot be changed.\n\nThis was triggered by passing the -kb flag to this application on startup.", // the Rune[R[] is not a typo; it's required in order to show brackets in tcell
+	).SetDoneFunc(
+		func(buttonIndex int, buttonLabel string) {
+			switch buttonIndex {
+			case 0:
+				keyboardEchoMode = false
+				pages.SwitchToPage(PAGE_PROFILES)
+			case 1:
+				keyboardEchoMode = false
+				app.Stop()
+			case 2:
+				keyboardEchoMode = true
+				pages.SwitchToPage(PAGE_PROFILES)
+			default:
+				keyboardEchoMode = false
+				app.Stop()
+				return
+			}
+		},
+	).SetBackgroundColor(tcell.ColorDimGray).
+		SetTextColor(tcell.ColorWhite)
+
+	pages.SwitchToPage(PAGE_PROMPT)
+	promptBox.SetFocus(2)
+	app.SetFocus(promptBox)
+}
+
+// For an input keybinding (straight from event.Name()), an output action
+// will be returned, for example - "Ctrl+Z" will return "undo".
+func getDefaultKeybind(name string) string {
+	m, ok := c.DEFAULT_MAPPINGS[name]
+	if !ok {
+		return ""
+	}
+
+	return m
+}
+
+func action(action string, e *tcell.EventKey) *tcell.EventKey {
+	duplicating := false
+	multiSelecting := false
+	switch action {
+	case c.ACTION_REDO:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case transactionsTable:
+				redo()
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_UNDO:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case transactionsTable:
+				undo()
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_QUIT:
+		promptExit()
+		return nil
+	case c.ACTION_MULTI:
+		multiSelecting = true
+		fallthrough
+	case c.ACTION_SELECT:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case transactionsTable:
+				cr, cc := transactionsTable.GetSelection()
+				// get the height & width of the transactions table
+				actual := cr - 1 // skip header
+				if multiSelecting {
+					// shift modifier is used to extend the selection
+					// from the previously selected index to the current
+					newSelectionValue := false
+					// start by finding the currently highlighted TX
+					for i := range selectedProfile.TX {
+						if i == actual {
+							newSelectionValue = !selectedProfile.TX[i].Selected
+							break
+						}
+					}
+
+					if lastSelectedIndex == -1 {
+						lastSelectedIndex = actual
+					}
+
+					// now that we've determined what the selection value
+					// should be, proceed to apply it to every value from
+					// lastSelectedIndex to the current index
+					for i := range selectedProfile.TX {
+						// last=5, current=10, select from 5-10 => last < i < actual
+						// last=10, current=3, select from 3-10 => last > i > actual
+						shouldModify := (lastSelectedIndex < i && i <= actual) || (lastSelectedIndex > i && i >= actual)
+						if shouldModify {
+							selectedProfile.TX[i].Selected = newSelectionValue
+						}
+					}
+				} else {
+					for i := range selectedProfile.TX {
+						if i == actual {
+							selectedProfile.TX[i].Selected = !selectedProfile.TX[i].Selected
+							break
+						}
+					}
+				}
+				lastSelectedIndex = actual
+				modified()
+				getTransactionsTable()
+				transactionsTable.Select(cr, cc)
+				app.SetFocus(transactionsTable)
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_MOVE:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case transactionsTable:
+				// move all selected items to the currently selected row:
+				// delete items, then re-add the items after the current
+				// row, then highlight the correct row
+
+				// but first, check if any items are selected at all
+				anySelected := false
+				for i := range selectedProfile.TX {
+					if selectedProfile.TX[i].Selected {
+						anySelected = true
+						break
+					}
+				}
+
+				if !anySelected {
+					statusText.SetText("[gray]nothing to move")
+					return nil
+				}
+
+				// get the height & width of the transactions table
+				cr, cc := transactionsTable.GetSelection()
+				actual := cr - 1 // skip header
+
+				// take note of the currently selected value (cannot be
+				// a candidate for move/deletion since it is the target
+				// for the move)
+				txid := selectedProfile.TX[actual].ID
+
+				// first delete the values from the slice and keep track of
+				// them
+				deleted := []lib.TX{}
+				newTX := []lib.TX{}
+				// for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
+				for i := range selectedProfile.TX {
+					if selectedProfile.TX[i].ID == txid {
+						// this is the target to move to
+						selectedProfile.TX[i].Selected = false
+						newTX = append(newTX, selectedProfile.TX[i])
+					} else if selectedProfile.TX[i].Selected {
+						selectedProfile.TX[i].Selected = true
+						deleted = append(deleted, selectedProfile.TX[i])
+						// selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
+					} else {
+						selectedProfile.TX[i].Selected = false
+						newTX = append(newTX, selectedProfile.TX[i])
+					}
+				}
+
+				// fmt.Println(numSelected)
+
+				selectedProfile.TX = newTX
+
+				// find the move target now that the slice has been shifted
+				newPosition := 0
+				for i := range selectedProfile.TX {
+					if selectedProfile.TX[i].ID == txid {
+						newPosition = i + 1
+						break
+					}
+				}
+
+				if newPosition >= len(selectedProfile.TX) {
+					newPosition = len(selectedProfile.TX)
+				} else if newPosition < 0 {
+					newPosition = 0
+				}
+
+				selectedProfile.TX = slices.Insert(selectedProfile.TX, newPosition, deleted...)
+
+				modified()
+
+				// re-render the table
+				getTransactionsTable()
+
+				transactionsTable.Select(newPosition+1, cc) // offset for headers
+				app.SetFocus(transactionsTable)
+			default:
+				app.SetFocus(profileList)
+			}
+			return nil
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_DELETE:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case transactionsTable:
+				// duplicate the current transaction
+				// get the height & width of the transactions table
+				cr, cc := transactionsTable.GetSelection()
+				actual := cr - 1 // skip header
+				for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
+					if selectedProfile.TX[i].Selected || i == actual {
+						selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
+					}
+				}
+				// for i := range selectedProfile.TX {
+				// 	if i == actual {
+				// 		selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
+				// 	}
+				// }
+				getTransactionsTable()
+				transactionsTable.Select(cr, cc)
+				app.SetFocus(transactionsTable)
+			case profileList:
+				if len(config.Profiles) <= 1 {
+					statusText.SetText("[gray] can't delete last profile")
+					return nil
+				}
+				getPrompt := func() string {
+					if selectedProfile == nil {
+						return "no profile selected; please cancel this operation"
+					}
+					return fmt.Sprintf(
+						"[gold::b]confirm deletion of profile %v by typing 'delete %v':%v",
+						selectedProfile.Name,
+						selectedProfile.Name,
+						c.RESET_STYLE,
+					)
+				}
+				transactionsInputField.SetDoneFunc(func(key tcell.Key) {
+					switch key {
+					case tcell.KeyEscape:
+						// don't save the changes
+						deactivateTransactionsInputField()
+						return
+					default:
+						// validate that the name is unique
+						value := transactionsInputField.GetText()
+						if strings.Index(value, "delete ") != 0 {
+							transactionsInputField.SetLabel(getPrompt())
+							return
+						}
+
+						profileName := strings.TrimPrefix(value, "delete ")
+						if profileName != selectedProfile.Name {
+							transactionsInputField.SetLabel(getPrompt())
+							return
+						}
+
+						// proceed to delete the profile
+						for i := range config.Profiles {
+							if profileName == config.Profiles[i].Name {
+								config.Profiles = slices.Delete(config.Profiles, i, i+1)
+								return
+							}
+						}
+
+						selectedProfile = &(config.Profiles[0])
+
+						// config.Profiles = append(config.Profiles, newProfile)
+						modified()
+						deactivateTransactionsInputField()
+						populateProfilesPage(true, true)
+						getTransactionsTable()
+						transactionsTable.Select(0, 0)
+						app.SetFocus(profileList)
+					}
+				})
+				activateTransactionsInputField(getPrompt(), "")
+			default:
+				app.SetFocus(profileList)
+			}
+			return nil
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_DUPLICATE:
+		duplicating = true
+		fallthrough
+	case c.ACTION_ADD:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case transactionsTable:
+				// duplicate the current transaction
+				// get the height & width of the transactions table
+				cr, cc := transactionsTable.GetSelection()
+				actual := cr - 1 // skip header
+				nt := []lib.TX{}
+				// iterate through the list once to find how many selected
+				// items there are
+				numSelected := 0
+				for i := range selectedProfile.TX {
+					if selectedProfile.TX[i].Selected {
+						numSelected += 1
+					}
+				}
+				for i := range selectedProfile.TX {
+					isHighlightedRow := i == actual && numSelected <= 1
+					isSelectedDuplicationCandidate := selectedProfile.TX[i].Selected && duplicating
+					if isHighlightedRow || isSelectedDuplicationCandidate {
+						// keep track of the highest order in a temporary
+						// slice
+						largestOrderHolder := []lib.TX{}
+						largestOrderHolder = append(largestOrderHolder, selectedProfile.TX...)
+						largestOrderHolder = append(largestOrderHolder, nt...)
+
+						newTX := lib.GetNewTX()
+						newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
+
+						if duplicating {
+							newTX.Amount = selectedProfile.TX[i].Amount
+							newTX.Active = selectedProfile.TX[i].Active
+							newTX.Name = selectedProfile.TX[i].Name
+							newTX.Note = selectedProfile.TX[i].Note
+							newTX.RRule = selectedProfile.TX[i].RRule
+							newTX.Frequency = selectedProfile.TX[i].Frequency
+							newTX.Interval = selectedProfile.TX[i].Interval
+							newTX.Weekdays = selectedProfile.TX[i].Weekdays
+							newTX.StartsDay = selectedProfile.TX[i].StartsDay
+							newTX.StartsMonth = selectedProfile.TX[i].StartsMonth
+							newTX.StartsYear = selectedProfile.TX[i].StartsYear
+							newTX.EndsDay = selectedProfile.TX[i].EndsDay
+							newTX.EndsMonth = selectedProfile.TX[i].EndsMonth
+							newTX.EndsYear = selectedProfile.TX[i].EndsYear
+						}
+
+						nt = append(nt, newTX)
+					}
+				}
+
+				// edge case: if we are not duplicating, and none are
+				// selected, then it means that the user is currently trying
+				// to add a new transaction, and they probably have the
+				// cursor on the table's headers row
+				if !duplicating && numSelected == 0 && len(nt) == 0 {
+					largestOrderHolder := []lib.TX{}
+					largestOrderHolder = append(largestOrderHolder, selectedProfile.TX...)
+					largestOrderHolder = append(largestOrderHolder, nt...)
+					newTX := lib.GetNewTX()
+					newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
+					nt = append(nt, newTX)
+				}
+
+				if len(nt) > 0 {
+					// handles the case of adding/duplicating when the cursor
+					// is on the headers row
+					if actual < 0 {
+						actual = 0
+					}
+					if len(selectedProfile.TX) == 0 || actual > len(selectedProfile.TX)-1 {
+						selectedProfile.TX = append(selectedProfile.TX, nt...)
+					} else {
+						selectedProfile.TX = slices.Insert(selectedProfile.TX, actual, nt...)
+					}
+					modified()
+					getTransactionsTable()
+					transactionsTable.Select(cr, cc)
+					app.SetFocus(transactionsTable)
+				}
+			case profileList:
+				// add/duplicate new profile
+				transactionsInputField.SetDoneFunc(func(key tcell.Key) {
+					switch key {
+					case tcell.KeyEscape:
+						// don't save the changes
+						deactivateTransactionsInputField()
+						return
+					default:
+						// validate that the name is unique
+						newProfileName := transactionsInputField.GetText()
+						for i := range config.Profiles {
+							if newProfileName == config.Profiles[i].Name {
+								transactionsInputField.SetLabel("profile name must be unique:")
+								return
+							}
+						}
+
+						newProfile := m.Profile(*selectedProfile)
+						newProfile.Name = newProfileName
+						if !duplicating {
+							newProfile = m.Profile{Name: newProfileName}
+						}
+
+						selectedProfile = &newProfile
+
+						config.Profiles = append(config.Profiles, newProfile)
+						modified()
+						deactivateTransactionsInputField()
+						populateProfilesPage(true, true)
+						getTransactionsTable()
+						transactionsTable.Select(0, 0)
+						// app.SetFocus(transactionsTable)
+						app.SetFocus(profileList)
+					}
+				})
+				activateTransactionsInputField("set new unique profile name:", "")
+				return nil
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_EDIT:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return e
+			case profileList:
+				// add/duplicate new profile
+				transactionsInputField.SetDoneFunc(func(key tcell.Key) {
+					switch key {
+					case tcell.KeyEscape:
+						// don't save the changes
+						deactivateTransactionsInputField()
+						return
+					default:
+						// validate that the name is unique
+						newProfileName := transactionsInputField.GetText()
+						for i := range config.Profiles {
+							if newProfileName == config.Profiles[i].Name {
+								transactionsInputField.SetLabel("profile name must be unique:")
+								return
+							}
+						}
+
+						selectedProfile.Name = newProfileName
+						modified()
+						deactivateTransactionsInputField()
+						populateProfilesPage(true, true)
+						getTransactionsTable()
+						transactionsTable.Select(0, 0)
+						app.SetFocus(profileList)
+					}
+				})
+				activateTransactionsInputField(fmt.Sprintf("set new unique profile name for %v:", selectedProfile.Name), "")
+				return nil
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_SAVE:
+		if config.Version == "" {
+			config.Version = c.CONFIG_VERSION
+		}
+
+		b, err := yaml.Marshal(config)
+		if err != nil {
+			statusText.SetText("failed to marshal")
+			return nil
+		}
+
+		err = os.WriteFile(configFile, b, os.FileMode(0o644))
+		if err != nil {
+			statusText.SetText("failed to save")
+			return nil
+		}
+
+		selectedProfile.Modified = false
+		statusText.SetText("[gray] saved changes")
+		return nil
+	case c.ACTION_END:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsTable:
+				c := transactionsTable.GetColumnCount() - 1
+				cr, _ := transactionsTable.GetSelection()
+				transactionsTable.Select(cr, c)
+				app.SetFocus(transactionsTable)
+				return nil
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_HOME:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsTable:
+				cr, _ := transactionsTable.GetSelection()
+				transactionsTable.Select(cr, 0)
+				app.SetFocus(transactionsTable)
+				return nil
+			default:
+				return e
+			}
+		case PAGE_RESULTS:
+			return e
+		}
+	case c.ACTION_DOWN:
+		switch app.GetFocus() {
+		case transactionsInputField:
+			return nil
+		default:
+			return e
+		}
+	case c.ACTION_UP:
+		switch app.GetFocus() {
+		case transactionsInputField:
+			return nil
+		default:
+			return e
+		}
+	case c.ACTION_LEFT:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case profileList:
+				app.SetFocus(transactionsTable)
+				return nil
+			case transactionsTable:
+				_, cc := transactionsTable.GetSelection()
+				// focus the profile list when at column 0
+				if cc == 0 {
+					app.SetFocus(profileList)
+					return nil
+				}
+			default:
+				return e
+			}
+		default:
+			return e
+		}
+	case c.ACTION_RIGHT:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case profileList:
+				app.SetFocus(transactionsTable)
+				return nil
+			case transactionsTable:
+				c := transactionsTable.GetColumnCount() - 1
+				_, cc := transactionsTable.GetSelection()
+				// focus the profile list when at max column
+				if cc == c {
+					app.SetFocus(profileList)
+					return nil
+				}
+			default:
+				return e
+			}
+		default:
+			return e
+		}
+	case c.ACTION_PAGEDOWN:
+		f := app.GetFocus()
+		p, _ := pages.GetFrontPage()
+		switch p {
+		case PAGE_RESULTS:
+			switch f {
+			case resultsDescription:
+				return e
+			case resultsTable:
+				return e
+			default:
+				app.SetFocus(resultsTable)
+				return nil
+			}
+		}
+	case c.ACTION_PAGEUP:
+		f := app.GetFocus()
+		p, _ := pages.GetFrontPage()
+		switch p {
+		case PAGE_RESULTS:
+			switch f {
+			case resultsDescription:
+				return e
+			case resultsTable:
+				return e
+			default:
+				app.SetFocus(resultsTable)
+				return nil
+			}
+		}
+	case c.ACTION_BACKTAB:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return nil
+			case profileList:
+				app.SetFocus(transactionsTable)
+			case transactionsTable:
+				// get the height & width of the transactions table
+				// r := transactionsTable.GetRowCount() - 1
+				c := transactionsTable.GetColumnCount() - 1
+				cr, cc := transactionsTable.GetSelection()
+				nc := cc - 1
+				nr := cr
+				var focusTarget tview.Primitive
+				focusTarget = transactionsTable
+				if nc < 0 {
+					nc = c
+					nr -= 1
+					if nr < 0 {
+						// nc = c
+						nc = 0
+						// nr = r
+						nr = 0
+					}
+					// it's more intuitive to go back to the profileList
+					// when backtabbing from the first column in the table
+					focusTarget = profileList
+				}
+				transactionsTable.Select(nr, nc)
+				app.SetFocus(focusTarget)
+			default:
+				app.SetFocus(profileList)
+			}
+			return nil
+		case PAGE_RESULTS:
+			switch app.GetFocus() {
+			case resultsTable:
+				resultsForm.SetFocus(0)
+				app.SetFocus(resultsForm)
+				return nil
+			case resultsDescription:
+				app.SetFocus(resultsTable)
+			case resultsForm:
+				return e
+			}
+			return e
+		}
+	case c.ACTION_TAB:
+		pageName, _ := pages.GetFrontPage()
+		switch pageName {
+		case PAGE_PROFILES:
+			switch app.GetFocus() {
+			case transactionsInputField:
+				return nil
+			case profileList:
+				app.SetFocus(transactionsTable)
+			case transactionsTable:
+				// get the height & width of the transactions table
+				r := transactionsTable.GetRowCount() - 1
+				c := transactionsTable.GetColumnCount() - 1
+				cr, cc := transactionsTable.GetSelection()
+				nc := cc + 1
+				nr := cr
+				var focusTarget tview.Primitive
+				focusTarget = transactionsTable
+				if nc > c {
+					nc = 0 // loop around
+					nr += 1
+					if nr > r {
+						nc = 0
+						nr = r
+					}
+					// it's more intuitive to go back to the profileList
+					// when backtabbing from the first column in the table
+					focusTarget = profileList
+				}
+				transactionsTable.Select(nr, nc)
+				app.SetFocus(focusTarget)
+			default:
+				app.SetFocus(profileList)
+			}
+			return nil
+		case PAGE_RESULTS:
+			switch app.GetFocus() {
+			case resultsTable:
+				app.SetFocus(resultsDescription)
+			case resultsDescription:
+				resultsForm.SetFocus(0)
+				app.SetFocus(resultsForm)
+				return nil
+			case resultsForm:
+				return e
+			}
+			return e
+		}
+	case c.ACTION_ESCAPE:
+		currentFocus := app.GetFocus()
+		switch currentFocus {
+		case transactionsInputField:
+			return e
+		case transactionsTable:
+			// deselect the last selected index on the first press
+			if lastSelectedIndex != -1 {
+				lastSelectedIndex = -1
+				getTransactionsTable()
+				cr, cc := transactionsTable.GetSelection()
+				transactionsTable.Select(cr, cc)
+				app.SetFocus(transactionsTable)
+				return nil
+			}
+			anySelected := false
+			for i := range selectedProfile.TX {
+				if selectedProfile.TX[i].Selected {
+					anySelected = true
+					selectedProfile.TX[i].Selected = false
+				}
+			}
+
+			if !anySelected {
+				app.SetFocus(profileList)
+				return nil
+			}
+			modified()
+			getTransactionsTable()
+			cr, cc := transactionsTable.GetSelection()
+			transactionsTable.Select(cr, cc)
+			app.SetFocus(transactionsTable)
+		case resultsForm:
+			app.SetFocus(resultsTable)
+			return nil
+		case resultsTable:
+			pages.SwitchToPage(PAGE_PROFILES)
+			return nil
+		default:
+			promptExit()
+			return nil
+		}
+	case c.ACTION_RESULTS:
+		// if the user is already on the results page, focus the
+		// text view description instead
+		p, _ := pages.GetFrontPage()
+		alreadyOnPage := false
+		if p == PAGE_RESULTS {
+			alreadyOnPage = true
+		}
+		getResultsTable()
+		pages.SwitchToPage(PAGE_RESULTS)
+		setBottomHelpText()
+		if latestResults == nil {
+			return e
+		}
+		stats, err := lib.GetStats(*latestResults)
+		if err != nil {
+			return nil
+		}
+		resultsDescription.SetText(stats)
+		if alreadyOnPage {
+			app.SetFocus(resultsTable)
+		}
+		return nil
+	case c.ACTION_PROFILES:
+		p, _ := pages.GetFrontPage()
+		alreadyOnPage := false
+		if p == PAGE_PROFILES {
+			alreadyOnPage = true
+		}
+		pages.SwitchToPage(PAGE_PROFILES)
+		setBottomHelpText()
+		if alreadyOnPage {
+			app.SetFocus(profileList)
+		}
+		return nil
+	case c.ACTION_GLOBAL_HELP:
+		pages.SwitchToPage(PAGE_HELP)
+		setBottomHelpText()
+		return nil
+	case c.ACTION_HELP:
+		switch app.GetFocus() {
+		case transactionsInputField:
+		case resultsForm:
+			return e
+		default:
+			pages.SwitchToPage(PAGE_HELP)
+			setBottomHelpText()
+		}
+	case c.ACTION_SEARCH:
+		// searching not implemented yet
+		fallthrough
+	default:
+		return e
+	}
+
+	return e
+}
+
+func bindings() {
+	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		n := e.Name()
+		if keyboardEchoMode {
+			statusText.SetDynamicColors(false).SetText(n)
+			if e.Key() == tcell.KeyEscape || e.Key() == tcell.KeyCtrlC {
+				app.Stop()
+			}
+			return nil
+		}
+
+		var final *tcell.EventKey
+		final = e
+
+		foundBinding := false
+
+		for binding, actions := range config.Keybindings {
+			if n != binding {
+				continue
+			}
+
+			foundBinding = true
+			for i := range actions {
+				final = action(actions[i], final)
+			}
+		}
+
+		if !foundBinding {
+			// execute default action
+			return action(getDefaultKeybind(n), e)
+		}
+
+		return final
+	})
 }
 
 func main() {
@@ -1993,7 +2980,7 @@ func main() {
 	if len(config.Profiles) > 0 {
 		selectedProfile = &(config.Profiles[0])
 	} else {
-		n := Profile{
+		n := m.Profile{
 			TX:   []lib.TX{lib.GetNewTX()},
 			Name: "New Profile Name",
 		}
@@ -2008,17 +2995,6 @@ func main() {
 
 	undoBuffer = [][]byte{b}
 	undoBufferPos = 0
-
-	now := time.Now()
-	yr := now.Add(time.Hour * 24 * 365)
-
-	resultsFormStartYear = fmt.Sprint(now.Year())
-	resultsFormStartMonth = fmt.Sprint(int(now.Month()))
-	resultsFormStartDay = fmt.Sprint(now.Day())
-	resultsFormEndYear = fmt.Sprint(yr.Year())
-	resultsFormEndMonth = fmt.Sprint(int(yr.Month()))
-	resultsFormEndDay = fmt.Sprint(yr.Day())
-	resultsFormAmount = 50000
 
 	lastSelectedIndex = -1
 	app = tview.NewApplication()
@@ -2044,858 +3020,10 @@ func main() {
 	layout.AddItem(pages, 0, 1, true).AddItem(bottomHelpText, 1, 0, false)
 
 	app.SetFocus(profileList)
-	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if e.Rune() == '/' {
-			// if !isSearching {
-			// 	isSearching = true
-			// 	searchTerm = ""
-			// 	// app.SetFocus(bottomLeftSearch)
-			// 	// getLayout(commands)
-			// 	setBottomLeftText("[aqua]searching:")
-			// 	bottomLeftSearch.SetText("")
-			// 	bottomLeftSearch.SetDisabled(false)
-			// 	// searchTerm = fmt.Sprintf("%v%v", searchTerm, string(e.Rune()))
-			// 	app.SetFocus(bottomLeftSearch)
-			// 	bottomLeftSearch.SetChangedFunc(func(text string) {
-			// 		if list != nil {
-			// 			list.Clear()
-			// 		}
-			// 		searchTerm = text
-			// 		// getFilteredList(list, *commands, searchTerm)
-			// 	})
-			// 	return nil
-			// }
-		} else if e.Key() == tcell.KeyF1 {
-			pages.SwitchToPage(PAGE_HELP)
-			setBottomHelpText()
-			return nil
-		} else if e.Rune() == '?' {
-			switch app.GetFocus() {
-			case transactionsInputField:
-			case resultsForm:
-				return e
-			default:
-				pages.SwitchToPage(PAGE_HELP)
-				setBottomHelpText()
-			}
-		} else if e.Key() == tcell.KeyF2 {
-			p, _ := pages.GetFrontPage()
-			alreadyOnPage := false
-			if p == PAGE_PROFILES {
-				alreadyOnPage = true
-			}
-			pages.SwitchToPage(PAGE_PROFILES)
-			setBottomHelpText()
-			if alreadyOnPage {
-				app.SetFocus(profileList)
-			}
-			return nil
-		} else if e.Key() == tcell.KeyF3 {
-			// if the user is already on the results page, focus the
-			// text view description instead
-			p, _ := pages.GetFrontPage()
-			alreadyOnPage := false
-			if p == PAGE_RESULTS {
-				alreadyOnPage = true
-			}
-			getResultsTable()
-			pages.SwitchToPage(PAGE_RESULTS)
-			setBottomHelpText()
-			if latestResults == nil {
-				return e
-			}
-			stats, err := lib.GetStats(*latestResults)
-			if err != nil {
-				return nil
-			}
-			resultsDescription.SetText(stats)
-			if alreadyOnPage {
-				app.SetFocus(resultsTable)
-			}
-			return nil
-		} else if e.Key() == tcell.KeyEscape {
-			currentFocus := app.GetFocus()
-			switch currentFocus {
-			case transactionsInputField:
-				return e
-			case transactionsTable:
-				// deselect the last selected index on the first press
-				if lastSelectedIndex != -1 {
-					lastSelectedIndex = -1
-					getTransactionsTable()
-					cr, cc := transactionsTable.GetSelection()
-					transactionsTable.Select(cr, cc)
-					app.SetFocus(transactionsTable)
-					return nil
-				}
-				anySelected := false
-				for i := range selectedProfile.TX {
-					if selectedProfile.TX[i].Selected {
-						anySelected = true
-						selectedProfile.TX[i].Selected = false
-					}
-				}
 
-				if !anySelected {
-					app.SetFocus(profileList)
-					return nil
-				}
-				modified()
-				getTransactionsTable()
-				cr, cc := transactionsTable.GetSelection()
-				transactionsTable.Select(cr, cc)
-				app.SetFocus(transactionsTable)
-			case resultsForm:
-				app.SetFocus(resultsTable)
-				return nil
-			case resultsTable:
-				pages.SwitchToPage(PAGE_PROFILES)
-				return nil
-			default:
-				promptExit()
-				return nil
-			}
+	promptKBMode()
 
-			// if isSearching {
-			// endSearch(fmt.Sprintf("canceled search: %v", searchTerm))
-			// return nil
-			// } else if
-			// else {
-			// app.Stop()
-			// }
-		} else if e.Key() == tcell.KeyLeft {
-			// if isSearching {
-			// 	return e
-			// }
-			// switch currentlyFocusedBox {
-			// case BOX_STDOUT:
-			// 	app.SetFocus(list)
-			// 	currentlyFocusedBox = BOX_LIST
-			// case BOX_STDERR:
-			// 	app.SetFocus(list)
-			// 	currentlyFocusedBox = BOX_LIST
-			// case BOX_LIST:
-			// 	fallthrough
-			// default:
-			// 	app.SetFocus(info)
-			// 	currentlyFocusedBox = BOX_STDOUT
-			// }
-			// return nil
-		} else if e.Key() == tcell.KeyRight {
-			// if isSearching {
-			// 	return e
-			// }
-			// switch currentlyFocusedBox {
-			// case BOX_STDOUT:
-			// 	app.SetFocus(list)
-			// 	currentlyFocusedBox = BOX_LIST
-			// case BOX_STDERR:
-			// 	app.SetFocus(list)
-			// 	currentlyFocusedBox = BOX_LIST
-			// case BOX_LIST:
-			// 	fallthrough
-			// default:
-			// 	app.SetFocus(info)
-			// 	currentlyFocusedBox = BOX_STDOUT
-			// }
-			// return nil
-		} else if e.Key() == tcell.KeyTab {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return nil
-				case profileList:
-					app.SetFocus(transactionsTable)
-				case transactionsTable:
-					// get the height & width of the transactions table
-					r := transactionsTable.GetRowCount() - 1
-					c := transactionsTable.GetColumnCount() - 1
-					cr, cc := transactionsTable.GetSelection()
-					nc := cc + 1
-					nr := cr
-					var focusTarget tview.Primitive
-					focusTarget = transactionsTable
-					if nc > c {
-						nc = 0 // loop around
-						nr += 1
-						if nr > r {
-							nc = 0
-							nr = r
-						}
-						// it's more intuitive to go back to the profileList
-						// when backtabbing from the first column in the table
-						focusTarget = profileList
-					}
-					transactionsTable.Select(nr, nc)
-					app.SetFocus(focusTarget)
-				default:
-					app.SetFocus(profileList)
-				}
-				return nil
-			case PAGE_RESULTS:
-				switch app.GetFocus() {
-				case resultsTable:
-					app.SetFocus(resultsDescription)
-				case resultsDescription:
-					app.SetFocus(resultsForm)
-				case resultsForm:
-					return e
-				}
-				return e
-			}
-		} else if e.Key() == tcell.KeyBacktab {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return nil
-				case profileList:
-					app.SetFocus(transactionsTable)
-				case transactionsTable:
-					// get the height & width of the transactions table
-					// r := transactionsTable.GetRowCount() - 1
-					c := transactionsTable.GetColumnCount() - 1
-					cr, cc := transactionsTable.GetSelection()
-					nc := cc - 1
-					nr := cr
-					var focusTarget tview.Primitive
-					focusTarget = transactionsTable
-					if nc < 0 {
-						nc = c
-						nr -= 1
-						if nr < 0 {
-							// nc = c
-							nc = 0
-							// nr = r
-							nr = 0
-						}
-						// it's more intuitive to go back to the profileList
-						// when backtabbing from the first column in the table
-						focusTarget = profileList
-					}
-					transactionsTable.Select(nr, nc)
-					app.SetFocus(focusTarget)
-				default:
-					app.SetFocus(profileList)
-				}
-				return nil
-			case PAGE_RESULTS:
-				switch app.GetFocus() {
-				case resultsTable:
-					app.SetFocus(resultsForm)
-				case resultsDescription:
-					app.SetFocus(resultsTable)
-				case resultsForm:
-					return e
-				}
-				return e
-			}
-		} else if e.Key() == tcell.KeyPgUp {
-			f := app.GetFocus()
-			p, _ := pages.GetFrontPage()
-			switch p {
-			case PAGE_RESULTS:
-				switch f {
-				case resultsDescription:
-					return e
-				case resultsTable:
-					return e
-				default:
-					app.SetFocus(resultsTable)
-					return nil
-				}
-			}
-		} else if e.Key() == tcell.KeyPgDn {
-			f := app.GetFocus()
-			p, _ := pages.GetFrontPage()
-			switch p {
-			case PAGE_RESULTS:
-				switch f {
-				case resultsDescription:
-					return e
-				case resultsTable:
-					return e
-				default:
-					app.SetFocus(resultsTable)
-					return nil
-				}
-			}
-		} else if e.Key() == tcell.KeyUp {
-			switch app.GetFocus() {
-			case transactionsInputField:
-				return nil
-			default:
-				return e
-			}
-			// if isSearching {
-			// 	return e
-			// }
-			// switch currentlyFocusedBox {
-			// case BOX_STDOUT:
-			// 	app.SetFocus(info)
-			// 	r, c := info.GetScrollOffset()
-			// 	newRow := r - 1
-			// 	info.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_STDERR:
-			// 	app.SetFocus(errors)
-			// 	r, c := errors.GetScrollOffset()
-			// 	newRow := r - 1
-			// 	errors.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_LIST:
-			// 	fallthrough
-			// default:
-			// 	app.SetFocus(list)
-			// 	return e
-			// }
-		} else if e.Key() == tcell.KeyDown {
-			switch app.GetFocus() {
-			case transactionsInputField:
-				return nil
-			default:
-				return e
-			}
-			// if isSearching {
-			// 	return e
-			// }
-			// switch currentlyFocusedBox {
-			// case BOX_STDOUT:
-			// 	app.SetFocus(info)
-			// 	r, c := info.GetScrollOffset()
-			// 	newRow := r + 1
-			// 	info.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_STDERR:
-			// 	app.SetFocus(errors)
-			// 	r, c := info.GetScrollOffset()
-			// 	newRow := r + 1
-			// 	errors.ScrollTo(newRow, c)
-			// 	return nil
-			// case BOX_LIST:
-			// 	fallthrough
-			// default:
-			// 	app.SetFocus(list)
-			// 	return e
-			// }
-		} else if e.Key() == tcell.KeyHome {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsTable:
-					cr, _ := transactionsTable.GetSelection()
-					transactionsTable.Select(cr, 0)
-					app.SetFocus(transactionsTable)
-					return nil
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Key() == tcell.KeyEnd {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsTable:
-					c := transactionsTable.GetColumnCount() - 1
-					cr, _ := transactionsTable.GetSelection()
-					transactionsTable.Select(cr, c)
-					app.SetFocus(transactionsTable)
-					return nil
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Key() == tcell.KeyCtrlS {
-			if config.Version == "" {
-				config.Version = c.CONFIG_VERSION
-			}
-
-			b, err := yaml.Marshal(config)
-			if err != nil {
-				statusText.SetText("failed to marshal")
-				return nil
-			}
-
-			err = os.WriteFile(configFile, b, os.FileMode(0o644))
-			if err != nil {
-				statusText.SetText("failed to save")
-				return nil
-			}
-
-			selectedProfile.modified = false
-			statusText.SetText("[gray] saved changes")
-			return nil
-		} else if e.Rune() == 'e' || e.Rune() == 'r' {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case profileList:
-					// add/duplicate new profile
-					transactionsInputField.SetDoneFunc(func(key tcell.Key) {
-						switch key {
-						case tcell.KeyEscape:
-							// don't save the changes
-							deactivateTransactionsInputField()
-							return
-						default:
-							// validate that the name is unique
-							newProfileName := transactionsInputField.GetText()
-							for i := range config.Profiles {
-								if newProfileName == config.Profiles[i].Name {
-									transactionsInputField.SetLabel("profile name must be unique:")
-									return
-								}
-							}
-
-							selectedProfile.Name = newProfileName
-							modified()
-							deactivateTransactionsInputField()
-							populateProfilesPage(true, true)
-							getTransactionsTable()
-							transactionsTable.Select(0, 0)
-							app.SetFocus(profileList)
-						}
-					})
-					activateTransactionsInputField(fmt.Sprintf("set new unique profile name for %v:", selectedProfile.Name), "")
-					return nil
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Key() == tcell.KeyCtrlD || e.Key() == tcell.KeyCtrlN || e.Rune() == 'a' || e.Rune() == 'n' {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				duplicating := e.Key() == tcell.KeyCtrlD
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case transactionsTable:
-					// duplicate the current transaction
-					// get the height & width of the transactions table
-					cr, cc := transactionsTable.GetSelection()
-					actual := cr - 1 // skip header
-					nt := []lib.TX{}
-					// iterate through the list once to find how many selected
-					// items there are
-					numSelected := 0
-					for i := range selectedProfile.TX {
-						if selectedProfile.TX[i].Selected {
-							numSelected += 1
-						}
-					}
-					for i := range selectedProfile.TX {
-						isHighlightedRow := i == actual && numSelected <= 1
-						isSelectedDuplicationCandidate := selectedProfile.TX[i].Selected && duplicating
-						if isHighlightedRow || isSelectedDuplicationCandidate {
-							// keep track of the highest order in a temporary
-							// slice
-							largestOrderHolder := []lib.TX{}
-							largestOrderHolder = append(largestOrderHolder, selectedProfile.TX...)
-							largestOrderHolder = append(largestOrderHolder, nt...)
-
-							newTX := lib.GetNewTX()
-							newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
-
-							if duplicating {
-								newTX.Amount = selectedProfile.TX[i].Amount
-								newTX.Active = selectedProfile.TX[i].Active
-								newTX.Name = selectedProfile.TX[i].Name
-								newTX.Note = selectedProfile.TX[i].Note
-								newTX.RRule = selectedProfile.TX[i].RRule
-								newTX.Frequency = selectedProfile.TX[i].Frequency
-								newTX.Interval = selectedProfile.TX[i].Interval
-								newTX.Weekdays = selectedProfile.TX[i].Weekdays
-								newTX.StartsDay = selectedProfile.TX[i].StartsDay
-								newTX.StartsMonth = selectedProfile.TX[i].StartsMonth
-								newTX.StartsYear = selectedProfile.TX[i].StartsYear
-								newTX.EndsDay = selectedProfile.TX[i].EndsDay
-								newTX.EndsMonth = selectedProfile.TX[i].EndsMonth
-								newTX.EndsYear = selectedProfile.TX[i].EndsYear
-							}
-
-							nt = append(nt, newTX)
-						}
-					}
-
-					// edge case: if we are not duplicating, and none are
-					// selected, then it means that the user is currently trying
-					// to add a new transaction, and they probably have the
-					// cursor on the table's headers row
-					if !duplicating && numSelected == 0 && len(nt) == 0 {
-						largestOrderHolder := []lib.TX{}
-						largestOrderHolder = append(largestOrderHolder, selectedProfile.TX...)
-						largestOrderHolder = append(largestOrderHolder, nt...)
-						newTX := lib.GetNewTX()
-						newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
-						nt = append(nt, newTX)
-					}
-
-					if len(nt) > 0 {
-						// handles the case of adding/duplicating when the cursor
-						// is on the headers row
-						if actual < 0 {
-							actual = 0
-						}
-						if len(selectedProfile.TX) == 0 || actual > len(selectedProfile.TX)-1 {
-							selectedProfile.TX = append(selectedProfile.TX, nt...)
-						} else {
-							selectedProfile.TX = slices.Insert(selectedProfile.TX, actual, nt...)
-						}
-						modified()
-						getTransactionsTable()
-						transactionsTable.Select(cr, cc)
-						app.SetFocus(transactionsTable)
-					}
-				case profileList:
-					// add/duplicate new profile
-					transactionsInputField.SetDoneFunc(func(key tcell.Key) {
-						switch key {
-						case tcell.KeyEscape:
-							// don't save the changes
-							deactivateTransactionsInputField()
-							return
-						default:
-							// validate that the name is unique
-							newProfileName := transactionsInputField.GetText()
-							for i := range config.Profiles {
-								if newProfileName == config.Profiles[i].Name {
-									transactionsInputField.SetLabel("profile name must be unique:")
-									return
-								}
-							}
-
-							newProfile := Profile(*selectedProfile)
-							newProfile.Name = newProfileName
-							if !duplicating {
-								newProfile = Profile{Name: newProfileName}
-							}
-
-							selectedProfile = &newProfile
-
-							config.Profiles = append(config.Profiles, newProfile)
-							modified()
-							deactivateTransactionsInputField()
-							populateProfilesPage(true, true)
-							getTransactionsTable()
-							transactionsTable.Select(0, 0)
-							// app.SetFocus(transactionsTable)
-							app.SetFocus(profileList)
-						}
-					})
-					activateTransactionsInputField("set new unique profile name:", "")
-					return nil
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Key() == tcell.KeyDelete {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case transactionsTable:
-					// duplicate the current transaction
-					// get the height & width of the transactions table
-					cr, cc := transactionsTable.GetSelection()
-					actual := cr - 1 // skip header
-					for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
-						if selectedProfile.TX[i].Selected || i == actual {
-							selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
-						}
-					}
-					// for i := range selectedProfile.TX {
-					// 	if i == actual {
-					// 		selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
-					// 	}
-					// }
-					getTransactionsTable()
-					transactionsTable.Select(cr, cc)
-					app.SetFocus(transactionsTable)
-				case profileList:
-					if len(config.Profiles) <= 1 {
-						statusText.SetText("[gray] can't delete last profile")
-						return nil
-					}
-					getPrompt := func() string {
-						if selectedProfile == nil {
-							return "no profile selected; please cancel this operation"
-						}
-						return fmt.Sprintf(
-							"[gold::b]confirm deletion of profile %v by typing 'delete %v':%v",
-							selectedProfile.Name,
-							selectedProfile.Name,
-							c.RESET_STYLE,
-						)
-					}
-					transactionsInputField.SetDoneFunc(func(key tcell.Key) {
-						switch key {
-						case tcell.KeyEscape:
-							// don't save the changes
-							deactivateTransactionsInputField()
-							return
-						default:
-							// validate that the name is unique
-							value := transactionsInputField.GetText()
-							if strings.Index(value, "delete ") != 0 {
-								transactionsInputField.SetLabel(getPrompt())
-								return
-							}
-
-							profileName := strings.TrimPrefix(value, "delete ")
-							if profileName != selectedProfile.Name {
-								transactionsInputField.SetLabel(getPrompt())
-								return
-							}
-
-							// proceed to delete the profile
-							for i := range config.Profiles {
-								if profileName == config.Profiles[i].Name {
-									config.Profiles = slices.Delete(config.Profiles, i, i+1)
-									return
-								}
-							}
-
-							selectedProfile = &(config.Profiles[0])
-
-							// config.Profiles = append(config.Profiles, newProfile)
-							modified()
-							deactivateTransactionsInputField()
-							populateProfilesPage(true, true)
-							getTransactionsTable()
-							transactionsTable.Select(0, 0)
-							app.SetFocus(profileList)
-						}
-					})
-					activateTransactionsInputField(getPrompt(), "")
-				default:
-					app.SetFocus(profileList)
-				}
-				return nil
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Rune() == 'm' {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case transactionsTable:
-					// move all selected items to the currently selected row:
-					// delete items, then re-add the items after the current
-					// row, then highlight the correct row
-
-					// but first, check if any items are selected at all
-					anySelected := false
-					for i := range selectedProfile.TX {
-						if selectedProfile.TX[i].Selected {
-							anySelected = true
-							break
-						}
-					}
-
-					if !anySelected {
-						statusText.SetText("[gray]nothing to move")
-						return nil
-					}
-
-					// get the height & width of the transactions table
-					cr, cc := transactionsTable.GetSelection()
-					actual := cr - 1 // skip header
-
-					// take note of the currently selected value (cannot be
-					// a candidate for move/deletion since it is the target
-					// for the move)
-					txid := selectedProfile.TX[actual].ID
-
-					// first delete the values from the slice and keep track of
-					// them
-					deleted := []lib.TX{}
-					newTX := []lib.TX{}
-					// for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
-					for i := range selectedProfile.TX {
-						if selectedProfile.TX[i].ID == txid {
-							// this is the target to move to
-							selectedProfile.TX[i].Selected = false
-							newTX = append(newTX, selectedProfile.TX[i])
-						} else if selectedProfile.TX[i].Selected {
-							selectedProfile.TX[i].Selected = true
-							deleted = append(deleted, selectedProfile.TX[i])
-							// selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
-						} else {
-							selectedProfile.TX[i].Selected = false
-							newTX = append(newTX, selectedProfile.TX[i])
-						}
-					}
-
-					// fmt.Println(numSelected)
-
-					selectedProfile.TX = newTX
-
-					// find the move target now that the slice has been shifted
-					newPosition := 0
-					for i := range selectedProfile.TX {
-						if selectedProfile.TX[i].ID == txid {
-							newPosition = i + 1
-							break
-						}
-					}
-
-					if newPosition >= len(selectedProfile.TX) {
-						newPosition = len(selectedProfile.TX)
-					} else if newPosition < 0 {
-						newPosition = 0
-					}
-
-					selectedProfile.TX = slices.Insert(selectedProfile.TX, newPosition, deleted...)
-
-					modified()
-
-					// re-render the table
-					getTransactionsTable()
-
-					transactionsTable.Select(newPosition+1, cc) // offset for headers
-					app.SetFocus(transactionsTable)
-				default:
-					app.SetFocus(profileList)
-				}
-				return nil
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Rune() == ' ' || e.Key() == tcell.KeyCtrlSpace {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case transactionsTable:
-					cr, cc := transactionsTable.GetSelection()
-					// get the height & width of the transactions table
-					actual := cr - 1 // skip header
-					if e.Key() == tcell.KeyCtrlSpace {
-						// shift modifier is used to extend the selection
-						// from the previously selected index to the current
-						newSelectionValue := false
-						// start by finding the currently highlighted TX
-						for i := range selectedProfile.TX {
-							if i == actual {
-								newSelectionValue = !selectedProfile.TX[i].Selected
-								break
-							}
-						}
-
-						if lastSelectedIndex == -1 {
-							lastSelectedIndex = actual
-						}
-
-						// now that we've determined what the selection value
-						// should be, proceed to apply it to every value from
-						// lastSelectedIndex to the current index
-						for i := range selectedProfile.TX {
-							// last=5, current=10, select from 5-10 => last < i < actual
-							// last=10, current=3, select from 3-10 => last > i > actual
-							shouldModify := (lastSelectedIndex < i && i <= actual) || (lastSelectedIndex > i && i >= actual)
-							if shouldModify {
-								selectedProfile.TX[i].Selected = newSelectionValue
-							}
-						}
-					} else {
-						for i := range selectedProfile.TX {
-							if i == actual {
-								selectedProfile.TX[i].Selected = !selectedProfile.TX[i].Selected
-								break
-							}
-						}
-					}
-					lastSelectedIndex = actual
-					modified()
-					getTransactionsTable()
-					transactionsTable.Select(cr, cc)
-					app.SetFocus(transactionsTable)
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Key() == tcell.KeyCtrlC {
-			promptExit()
-			return nil
-		} else if e.Key() == tcell.KeyCtrlZ {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case transactionsTable:
-					undo()
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else if e.Key() == tcell.KeyCtrlY {
-			pageName, _ := pages.GetFrontPage()
-			switch pageName {
-			case PAGE_PROFILES:
-				switch app.GetFocus() {
-				case transactionsInputField:
-					return e
-				case transactionsTable:
-					redo()
-				default:
-					return e
-				}
-			case PAGE_RESULTS:
-				return e
-			}
-		} else {
-			// if isSearching {
-			// 	setBottomLeftText("[aqua]searching:")
-			// 	bottomLeftSearch.SetDisabled(false)
-			// 	bottomLeftSearch.Focus(func(p tview.Primitive) {})
-			// 	searchTerm = fmt.Sprintf("%v%v", searchTerm, string(e.Rune()))
-			// 	bottomLeftSearch.SetChangedFunc(func(text string) {
-			// 		if list != nil {
-			// 			list.Clear()
-			// 		}
-			// 		searchTerm = text
-			// 		getFilteredList(list, commands, searchTerm)
-			// 		bottomLeftSearch.SetText(searchTerm)
-			// 		bottomLeftSearch.Focus(func(p tview.Primitive) {})
-			// 	})
-			// 	return nil
-			// }
-			// if !isSearching {
-			// 	app.SetFocus(list)
-			// }
-		}
-		return e
-	})
+	bindings()
 
 	if err := app.SetRoot(layout, true).EnableMouse(true).Run(); err != nil {
 		panic(err)

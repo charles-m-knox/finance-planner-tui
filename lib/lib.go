@@ -22,6 +22,33 @@ import (
 	"golang.org/x/text/message"
 )
 
+type TX struct { // transaction
+	Order  int    `yaml:"order"`  // manual ordering
+	Amount int    `yaml:"amount"` // in cents; 500 = $5.00
+	Active bool   `yaml:"active"`
+	Name   string `yaml:"name"`
+	Note   string `yaml:"note"`
+	// for examples of rrules:
+	// https://github.com/teambition/rrule-go/blob/f71921a2b0a18e6e73c74dea155f3a549d71006d/rrule.go#L91
+	// https://github.com/teambition/rrule-go/blob/master/rruleset_test.go
+	// https://labix.org/python-dateutil/#head-88ab2bc809145fcf75c074817911575616ce7caf
+	RRule string `yaml:"rrule"`
+	// for when users don't want to use the rrules:
+	Frequency   string    `yaml:"frequency"`
+	Interval    int       `yaml:"interval"`
+	Weekdays    []int     `yaml:"weekdays"` // monday starts on 0
+	StartsDay   int       `yaml:"startsDay"`
+	StartsMonth int       `yaml:"startsMonth"`
+	StartsYear  int       `yaml:"startsYear"`
+	EndsDay     int       `yaml:"endsDay"`
+	EndsMonth   int       `yaml:"endsMonth"`
+	EndsYear    int       `yaml:"endsYear"`
+	ID          string    `yaml:"id"`
+	CreatedAt   time.Time `yaml:"createdAt"`
+	UpdatedAt   time.Time `yaml:"updatedAt"`
+	Selected    bool      `yaml:"selected"` // when activated in the transactions table
+}
+
 // TODO: refactor into constants
 var WeekdayIndex = map[string]int{
 	"Monday":    0,
@@ -79,33 +106,6 @@ func FormatAsCurrency(a int) string {
 	amt = amt / 100
 	p := message.NewPrinter(language.English)
 	return p.Sprintf("$%.2f", amt)
-}
-
-type TX struct { // transaction
-	Order  int    `yaml:"order"`  // manual ordering
-	Amount int    `yaml:"amount"` // in cents; 500 = $5.00
-	Active bool   `yaml:"active"`
-	Name   string `yaml:"name"`
-	Note   string `yaml:"note"`
-	// for examples of rrules:
-	// https://github.com/teambition/rrule-go/blob/f71921a2b0a18e6e73c74dea155f3a549d71006d/rrule.go#L91
-	// https://github.com/teambition/rrule-go/blob/master/rruleset_test.go
-	// https://labix.org/python-dateutil/#head-88ab2bc809145fcf75c074817911575616ce7caf
-	RRule string `yaml:"rrule"`
-	// for when users don't want to use the rrules:
-	Frequency   string    `yaml:"frequency"`
-	Interval    int       `yaml:"interval"`
-	Weekdays    []int     `yaml:"weekdays"` // monday starts on 0
-	StartsDay   int       `yaml:"startsDay"`
-	StartsMonth int       `yaml:"startsMonth"`
-	StartsYear  int       `yaml:"startsYear"`
-	EndsDay     int       `yaml:"endsDay"`
-	EndsMonth   int       `yaml:"endsMonth"`
-	EndsYear    int       `yaml:"endsYear"`
-	ID          string    `yaml:"id"`
-	CreatedAt   time.Time `yaml:"createdAt"`
-	UpdatedAt   time.Time `yaml:"updatedAt"`
-	Selected    bool      `yaml:"selected"` // when activated in the transactions table
 }
 
 type PreCalculatedResult struct {

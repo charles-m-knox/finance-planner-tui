@@ -39,6 +39,10 @@ const (
 	Desc = "Desc"
 	Asc  = "Asc"
 
+	START_TODAY_PRESET = "today"
+	ONE_YR             = "1year"
+	FIVE_YR            = "5year"
+
 	CONFIG_VERSION = "1"
 )
 
@@ -126,6 +130,134 @@ const (
 	COLOR_COLUMN_RESULTS_DAYTRANSACTIONNAMES = "[smoke]"
 )
 
+// actions that can be mapped to keybindings
+const (
+	ACTION_REDO        = "redo"
+	ACTION_UNDO        = "undo"
+	ACTION_QUIT        = "quit"
+	ACTION_SELECT      = "select"
+	ACTION_MULTI       = "multi"
+	ACTION_MOVE        = "move"
+	ACTION_DELETE      = "delete"
+	ACTION_DUPLICATE   = "duplicate"
+	ACTION_ADD         = "add"
+	ACTION_EDIT        = "edit"
+	ACTION_SAVE        = "save"
+	ACTION_END         = "end"
+	ACTION_HOME        = "home"
+	ACTION_LEFT        = "left"
+	ACTION_RIGHT       = "right"
+	ACTION_DOWN        = "down"
+	ACTION_UP          = "up"
+	ACTION_PAGEDOWN    = "pagedown"
+	ACTION_PAGEUP      = "pageup"
+	ACTION_BACKTAB     = "backtab"
+	ACTION_TAB         = "tab"
+	ACTION_ESCAPE      = "escape"
+	ACTION_RESULTS     = "results"
+	ACTION_PROFILES    = "profiles"
+	ACTION_GLOBAL_HELP = "globalhelp" // e.g. F1 key instead of ?
+	ACTION_HELP        = "help"       // e.g. ? key that can also be used in input fields
+	ACTION_SEARCH      = "search"
+)
+
+var ALL_ACTIONS = []string{
+	ACTION_REDO,
+	ACTION_UNDO,
+	ACTION_QUIT,
+	ACTION_SELECT,
+	ACTION_MULTI,
+	ACTION_MOVE,
+	ACTION_DELETE,
+	ACTION_DUPLICATE,
+	ACTION_ADD,
+	ACTION_EDIT,
+	ACTION_SAVE,
+	ACTION_END,
+	ACTION_HOME,
+	ACTION_LEFT,
+	ACTION_RIGHT,
+	ACTION_DOWN,
+	ACTION_UP,
+	ACTION_PAGEDOWN,
+	ACTION_PAGEUP,
+	ACTION_BACKTAB,
+	ACTION_TAB,
+	ACTION_ESCAPE,
+	ACTION_RESULTS,
+	ACTION_PROFILES,
+	ACTION_GLOBAL_HELP,
+	ACTION_HELP,
+	ACTION_SEARCH,
+}
+
+var DEFAULT_MAPPINGS = map[string]string{
+	DEFAULT_BINDING_UNDO:        ACTION_UNDO,
+	DEFAULT_BINDING_REDO:        ACTION_REDO,
+	DEFAULT_BINDING_UNDO:        ACTION_UNDO,
+	DEFAULT_BINDING_QUIT:        ACTION_QUIT,
+	DEFAULT_BINDING_SELECT:      ACTION_SELECT,
+	DEFAULT_BINDING_MULTI:       ACTION_MULTI,
+	DEFAULT_BINDING_MOVE:        ACTION_MOVE,
+	DEFAULT_BINDING_DELETE:      ACTION_DELETE,
+	DEFAULT_BINDING_DUPLICATE:   ACTION_DUPLICATE,
+	DEFAULT_BINDING_ADD_1:       ACTION_ADD,
+	DEFAULT_BINDING_ADD_2:       ACTION_ADD,
+	DEFAULT_BINDING_ADD_3:       ACTION_ADD,
+	DEFAULT_BINDING_EDIT_1:      ACTION_EDIT,
+	DEFAULT_BINDING_EDIT_2:      ACTION_EDIT,
+	DEFAULT_BINDING_SAVE:        ACTION_SAVE,
+	DEFAULT_BINDING_END:         ACTION_END,
+	DEFAULT_BINDING_HOME:        ACTION_HOME,
+	DEFAULT_BINDING_DOWN:        ACTION_DOWN,
+	DEFAULT_BINDING_UP:          ACTION_UP,
+	DEFAULT_BINDING_LEFT:        ACTION_LEFT,
+	DEFAULT_BINDING_RIGHT:       ACTION_RIGHT,
+	DEFAULT_BINDING_PAGEDOWN:    ACTION_PAGEDOWN,
+	DEFAULT_BINDING_PAGEUP:      ACTION_PAGEUP,
+	DEFAULT_BINDING_BACKTAB:     ACTION_BACKTAB,
+	DEFAULT_BINDING_TAB:         ACTION_TAB,
+	DEFAULT_BINDING_ESCAPE:      ACTION_ESCAPE,
+	DEFAULT_BINDING_RESULTS:     ACTION_RESULTS,
+	DEFAULT_BINDING_PROFILES:    ACTION_PROFILES,
+	DEFAULT_BINDING_GLOBAL_HELP: ACTION_GLOBAL_HELP,
+	DEFAULT_BINDING_HELP:        ACTION_HELP,
+	DEFAULT_BINDING_SEARCH:      ACTION_SEARCH,
+}
+
+var (
+	DEFAULT_BINDING_REDO        = "Ctrl+Y"
+	DEFAULT_BINDING_UNDO        = "Ctrl+Z"
+	DEFAULT_BINDING_QUIT        = "Ctrl+C"
+	DEFAULT_BINDING_SELECT      = "Rune[ ]"
+	DEFAULT_BINDING_MULTI       = "Ctrl+Space"
+	DEFAULT_BINDING_MOVE        = "Rune[m]"
+	DEFAULT_BINDING_DELETE      = "Delete"
+	DEFAULT_BINDING_DUPLICATE   = "Ctrl+D"
+	DEFAULT_BINDING_ADD_1       = "Rune[a]"
+	DEFAULT_BINDING_ADD_2       = "Ctrl+N"
+	DEFAULT_BINDING_ADD_3       = "Rune[n]"
+	DEFAULT_BINDING_EDIT_1      = "Rune[e]"
+	DEFAULT_BINDING_EDIT_2      = "Rune[r]"
+	DEFAULT_BINDING_SAVE        = "Ctrl+S"
+	DEFAULT_BINDING_END         = "End"
+	DEFAULT_BINDING_HOME        = "Home"
+	DEFAULT_BINDING_LEFT        = "Left"
+	DEFAULT_BINDING_RIGHT       = "Right"
+	DEFAULT_BINDING_DOWN        = "Down"
+	DEFAULT_BINDING_UP          = "Up"
+	DEFAULT_BINDING_PAGEDOWN    = "PgDn"
+	DEFAULT_BINDING_PAGEUP      = "PgUp"
+	DEFAULT_BINDING_BACKTAB     = "Backtab"
+	DEFAULT_BINDING_TAB         = "Tab"
+	DEFAULT_BINDING_ESCAPE      = "Esc"
+	DEFAULT_BINDING_RESULTS     = "F3"
+	DEFAULT_BINDING_PROFILES    = "F2"
+	DEFAULT_BINDING_GLOBAL_HELP = "F1"
+	DEFAULT_BINDING_HELP        = "Rune[?]"
+	DEFAULT_BINDING_SEARCH      = "Rune[/]"
+)
+
 const (
 	ColumnDateIndex = iota
 	ColumnBalanceIndex
@@ -162,94 +294,3 @@ var ResultsColumnsIndexes = []int{
 	ColumnDiffFromStartIndex,
 	ColumnDayTransactionNamesIndex,
 }
-
-const HelpText = `[lightgreen::b]Finance Planner[-:-:-:-]
-
-[gold]
-                 _____ _
-                |  ___(_)_ __   __ _ _ __   ___ ___
-                | |_  | | '_ \ / _  | '_ \ / __/ _ \
-                |  _| | | | | | (_| | | | | (_|  __/
-                |_|__ |_|_| |_|\__,_|_| |_|\___\___|[lightgreen]
-                |  _ \| | __ _ _ __  _ __   ___ _ __
-                | |_) | |/ _  | '_ \| '_ \ / _ \ '__|
-                |  __/| | (_| | | | | | | |  __/ |
-                |_|   |_|\__,_|_| |_|_| |_|\___|_|
-[-:-:-:-]
-
-
-[lightgreen::b]General information[-:-:-:-]
-
-[white]The purpose of this application is to allow you to define recurring bills
-and income ([gold]transactions[white]), and then get a fairly accurate prediction
-of where your money will be using the [blue]Results[white] page.
-
-[lightgreen::b]More on Profiles[-:-:-:-]
-
-[white]Profiles are shown on the left-hand side of the [blue]Profiles & Transactions[white] page.
-
-- You may need to use the <tab> key to get to them.
-- You can duplicate and rename profiles.
-- [gold]Each profile must have a unique name.[white] Duplicate names will be refused.
-
-You can create multiple [blue]profiles[white] to fulfill any purpose, such as:
-
-- modeling a change in your financial plans (removing subscriptions,
-  hypotheticals, etc)
-- adding multiple family members
-
-[lightgreen::b]More on Transactions[-:-:-:-]
-
-[white]A [blue]transaction[white] is a recurring expense or income:
-
-- If the transaction earns money, it is prefixed with a [lightgreen]+[white] (plus) sign.
-- All transactions are assumed to be negative by default.
-
-Each transaction has the following fields:
-
-- Order:     You can define a custom integer sorting order for transactions.
-             This field has no other purpose.
-- Amount:    This is a positive or negative value as described above.
-- Active:    This is a boolean value that determines whether the transaction should
-             be included in calculations. This is useful for temporarily making
-             changes without destroying anything.
-- Name:      This is the human-readable name of the transaction for your eyes.
-- Frequency: Transactions can occur [aqua]MONTHLY, [lightgreen]WEEKLY, or [gold]YEARLY.
-             [white]This value must be exactly one of those three strings, but an auto-
-             complete is provided to make it quicker.
-- Interval:  The transaction occurs every [aqua]<interval>[white] WEEKS/MONTHS/YEARS.
-- <Weekday>: The transaction only occurs on the checked days of the week, and
-             will not occur if the defined recurrence pattern does not land on
-             one of these days.
-- Starts:    This is the starting date for the transaction's recurrence pattern.
-             It is defined as [aqua]YYYY[white]-[lightgreen]MM[white]-[gold]DD[white].
-
-             For simplicity when working with dates at the end of the month,
-             you may want to consider putting setting the day value to 28, as
-             some recurrence patterns may skip a 31.
-
-             Months range from [aqua]1-12[white], and days range from [aqua]1-31[white].
-             Years must be any positive value, and can be 0.
-- Ends:      This is the last acceptable date for recurrence. Behavior is the
-             exact same as the Starts field.
-- Note:      A human-readable field for you to put arbitrary notes in.
-
-[lightgreen::b]General Keyboard Shortcuts:[-:-:-:-]
-
-<tab>/<shift+tab>: cycle back and forth between panels/controls where
-appropriate
-
-<esc>: deselects the last selected mark, and then deselects the last
-selected items, then un-focuses panes until eventually exiting the application
-entirely
-
-<ctrl+s>: saves to config.yml in the current directory
-
-<ctrl+i>: shows statistics in the Results page's bottom text pane
-
-[lightgreen::b]Transactions page:[-:-:-:-]
-
-<space>: select the current transaction
-<ctrl+space>: toggle multi-select from the last previously selected item
-<>
-`
