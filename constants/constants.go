@@ -225,6 +225,67 @@ var DEFAULT_MAPPINGS = map[string]string{
 	DEFAULT_BINDING_SEARCH:      ACTION_SEARCH,
 }
 
+// for now, please keep all explanations under 80 chars
+const (
+	ACTION_EXPLANATION_REDO        = "moves forward in the undo buffer"
+	ACTION_EXPLANATION_UNDO        = "moves backward in the undo buffer"
+	ACTION_EXPLANATION_QUIT        = "quit the application after a confirmation prompt"
+	ACTION_EXPLANATION_SELECT      = "toggle selecting of a single row in the transactions table"
+	ACTION_EXPLANATION_MULTI       = "select a range of items in the transactions table"
+	ACTION_EXPLANATION_MOVE        = "moves all selected transactions to the highlighted row"
+	ACTION_EXPLANATION_DELETE      = "deletes all selected transactions or current profile"
+	ACTION_EXPLANATION_DUPLICATE   = "duplicates all selected transactions"
+	ACTION_EXPLANATION_ADD         = "adds a new transaction to the transactions table"
+	ACTION_EXPLANATION_EDIT        = "rename the current profile when profile list is focused"
+	ACTION_EXPLANATION_SAVE        = "saves the current file"
+	ACTION_EXPLANATION_END         = "context-specific movement to the end of the row/column/line/bounds"
+	ACTION_EXPLANATION_HOME        = "context-specific movement to the start of the row/column/line/bounds"
+	ACTION_EXPLANATION_LEFT        = "moves the cursor/focus left, varies depending on context"
+	ACTION_EXPLANATION_RIGHT       = "moves the cursor/focus right, varies depending on context"
+	ACTION_EXPLANATION_DOWN        = "moves the cursor/focus down, varies depending on context"
+	ACTION_EXPLANATION_UP          = "moves the cursor/focus up, varies depending on context"
+	ACTION_EXPLANATION_PAGEDOWN    = "moves the cursor/focus a page down, varies depending on context"
+	ACTION_EXPLANATION_PAGEUP      = "moves the cursor/focus a page up, varies depending on context"
+	ACTION_EXPLANATION_BACKTAB     = "(shift+tab default) moves focus between elements, varies based on context"
+	ACTION_EXPLANATION_TAB         = "moves focus between elements, varies based on context"
+	ACTION_EXPLANATION_ESCAPE      = "escape the current context, press enough times and app will prompt to exit"
+	ACTION_EXPLANATION_RESULTS     = "immediately takes you to the results page"
+	ACTION_EXPLANATION_PROFILES    = "immediately takes you to the profiles page"
+	ACTION_EXPLANATION_GLOBAL_HELP = "immediately takes you to the help page"
+	ACTION_EXPLANATION_HELP        = "context-specific help, if available; otherwise, help page"
+	ACTION_EXPLANATION_SEARCH      = "(not implemented yet!) search (via fuzzy find) in the current table"
+)
+
+var ACTION_EXPLANATIONS = map[string]string{
+	ACTION_REDO:        ACTION_EXPLANATION_REDO,
+	ACTION_UNDO:        ACTION_EXPLANATION_UNDO,
+	ACTION_QUIT:        ACTION_EXPLANATION_QUIT,
+	ACTION_SELECT:      ACTION_EXPLANATION_SELECT,
+	ACTION_MULTI:       ACTION_EXPLANATION_MULTI,
+	ACTION_MOVE:        ACTION_EXPLANATION_MOVE,
+	ACTION_DELETE:      ACTION_EXPLANATION_DELETE,
+	ACTION_DUPLICATE:   ACTION_EXPLANATION_DUPLICATE,
+	ACTION_ADD:         ACTION_EXPLANATION_ADD,
+	ACTION_EDIT:        ACTION_EXPLANATION_EDIT,
+	ACTION_SAVE:        ACTION_EXPLANATION_SAVE,
+	ACTION_END:         ACTION_EXPLANATION_END,
+	ACTION_HOME:        ACTION_EXPLANATION_HOME,
+	ACTION_LEFT:        ACTION_EXPLANATION_LEFT,
+	ACTION_RIGHT:       ACTION_EXPLANATION_RIGHT,
+	ACTION_DOWN:        ACTION_EXPLANATION_DOWN,
+	ACTION_UP:          ACTION_EXPLANATION_UP,
+	ACTION_PAGEDOWN:    ACTION_EXPLANATION_PAGEDOWN,
+	ACTION_PAGEUP:      ACTION_EXPLANATION_PAGEUP,
+	ACTION_BACKTAB:     ACTION_EXPLANATION_BACKTAB,
+	ACTION_TAB:         ACTION_EXPLANATION_TAB,
+	ACTION_ESCAPE:      ACTION_EXPLANATION_ESCAPE,
+	ACTION_RESULTS:     ACTION_EXPLANATION_RESULTS,
+	ACTION_PROFILES:    ACTION_EXPLANATION_PROFILES,
+	ACTION_GLOBAL_HELP: ACTION_EXPLANATION_GLOBAL_HELP,
+	ACTION_HELP:        ACTION_EXPLANATION_HELP,
+	ACTION_SEARCH:      ACTION_EXPLANATION_SEARCH,
+}
+
 var (
 	DEFAULT_BINDING_REDO        = "Ctrl+Y"
 	DEFAULT_BINDING_UNDO        = "Ctrl+Z"
@@ -294,3 +355,143 @@ var ResultsColumnsIndexes = []int{
 	ColumnDiffFromStartIndex,
 	ColumnDayTransactionNamesIndex,
 }
+
+const HelpTextTemplate = `[lightgreen::b]Finance Planner[-:-:-:-]
+
+[gold]
+                 _____ _
+                |  ___(_)_ __   __ _ _ __   ___ ___
+                | |_  | | '_ \ / _  | '_ \ / __/ _ \
+                |  _| | | | | | (_| | | | | (_|  __/
+                |_|__ |_|_| |_|\__,_|_| |_|\___\___|[lightgreen]
+                |  _ \| | __ _ _ __  _ __   ___ _ __
+                | |_) | |/ _  | '_ \| '_ \ / _ \ '__|
+                |  __/| | (_| | | | | | | |  __/ |
+                |_|   |_|\__,_|_| |_|_| |_|\___|_|
+[-:-:-:-]
+
+
+[lightgreen::b]General information[-:-:-:-]
+
+The purpose of this application is to allow you to define recurring bills
+and income ([gold]transactions[-]), and then get a fairly accurate prediction
+of where your money will be using the [#8899dd]Results[white] page.
+
+[lightgreen::b]Profiles[-:-:-:-]
+
+Profiles are shown on the left-hand side of the [#8899dd]Profiles & Transactions[white] page.
+
+- You may need to use the <tab> key to get to them.
+- You can duplicate and rename profiles.
+- [gold]Each profile must have a unique name.[-] Duplicate names will be refused.
+
+You can create multiple [#8899dd]profiles[-] to fulfill any purpose, such as:
+
+- modeling a change in your financial plans (removing subscriptions,
+  hypotheticals, etc)
+- adding multiple family members
+
+[lightgreen::b]Transactions[-:-:-:-]
+
+A [#8899dd]transaction[-] is a recurring expense or income:
+
+- If the transaction earns money, it is prefixed with a [lightgreen]+[-] (plus) sign.
+- All transactions are assumed to be negative by default.
+
+Each transaction has the following fields:
+
+- [::b]Order[-]:     You can define a custom integer sorting order for transactions.
+             This field has no other purpose.
+- [::b]Amount[-]:    This is a positive or negative value as described above.
+- [::b]Active[-]:    This is a boolean value that determines whether the transaction should
+             be included in calculations. This is useful for temporarily making
+             changes without destroying anything.
+- [::b]Name[-]:      This is the human-readable name of the transaction for your eyes.
+- [::b]Frequency[-]: Transactions can occur [#8899dd]MONTHLY[-], [lightgreen]WEEKLY[-], or [gold]YEARLY.
+             [-]This value must be exactly one of those three strings, but an auto-
+             complete is provided to make it quicker.
+- [::b]Interval[-]:  The transaction occurs every [#8899dd]<interval>[white] WEEKS/MONTHS/YEARS.
+- [::b]<[-]Weekday>: The transaction only occurs on the checked days of the week, and
+             will not occur if the defined recurrence pattern does not land on
+             one of these days.
+- [::b]Starts[-]:    This is the starting date for the transaction's recurrence pattern.
+             It is defined as [#8899dd]YYYY[white]-[lightgreen]MM[white]-[gold]DD[white].
+
+             For simplicity when working with dates at the end of the month,
+             you may want to consider putting setting the day value to 28, as
+             some recurrence patterns may skip a 31.
+
+             Months range from [#8899dd]1-12[white], and days range from [#8899dd]1-31[white].
+             Years must be any positive value, and can be 0.
+- [::b]Ends[-]:      This is the last acceptable date for recurrence. Behavior is the
+             exact same as the Starts field.
+- [::b]Note[-]:      A human-readable field for you to put arbitrary notes in.
+
+[lightgreen::b]Keyboard Shortcuts: Current & Default[-:-:-:-]
+
+Custom keybindings are shown in [gold::b]gold[-:-:-:-]:
+{{ range $k, $v := .CombinedKeybindings }}
+- [::b]{{ $k -}}[-:-:-:-]: {{ range $v -}}{{- . }} {{ end -}}
+{{ end }}
+
+[lightgreen::b]Keyboard Shortcuts: All Actions Explained[-:-:-:-]
+{{ range $k, $v := .Explanations }}
+- [::b]{{ $k -}}[-:-:-:-]: {{ $v }}
+{{- end }}
+
+[lightgreen::b]Keyboard Shortcuts: All Actions' Mappings[-:-:-:-]
+
+For the sake of debugging any custom configuration changes you've made, actions
+and all of the ways they can be executed are shown below. Custom bindings are
+shown in [gold]gold[-], and bindings that are used as part of a chain of actions
+are shown in [#aaffee]a light blue color[-].
+{{ range $k, $v := .CombinedActions }}
+- [::b]{{ $k -}}[-:-:-:-]: {{ range $v -}}{{- . }} {{ end -}}
+{{ end }}
+
+[lightgreen::b]Keyboard Shortcuts: How to configure[-:-:-:-]
+
+Keyboard shortcuts can be bound to [::b]actions[-:-:-:-]. In your config.yml file,
+they can be specified with a top-level "keybindings" object, as shown in this
+example:
+
+  ---
+  keybindings:
+    "Ctrl+X":
+      - quit
+    "Ctrl+V":
+      - pagedown
+    "Alt+V":
+      - pageup
+    "Rune[r]":
+      - results
+
+Not all keyboard combinations will be actionable due to limitations of
+terminal emulators. To figure out which keybindings are acceptable, run this
+program with the [::b]"-kb"[-:-:-:-] flag to enter keyboard echo mode (more info will be
+given on startup). [::b]To unset a key, set its action value to 'none'[-:-:-:-].
+
+Astute readers will also note that more than one action can be provided per
+keybinding. For example, you may want to trigger multiple add actions at the
+same time by just pressing one set of keys. [yellow]You should be warned[-], however, that
+the number of permutations granted by chaining actions is massive, and can lead
+to completely untested scenarios, so expect bugs when using more than 1 action
+per key binding.
+`
+
+// <tab>/<shift+tab>: cycle back and forth between panels/controls where
+// appropriate
+
+// <esc>: deselects the last selected mark, and then deselects the last
+// selected items, then un-focuses panes until eventually exiting the application
+// entirely
+
+// <ctrl+s>: saves to config.yml in the current directory
+
+// <ctrl+i>: shows statistics in the Results page's bottom text pane
+
+// [lightgreen::b]Transactions page:[-:-:-:-]
+
+// <space>: select the current transaction
+// <ctrl+space>: toggle multi-select from the last previously selected item
+// <>

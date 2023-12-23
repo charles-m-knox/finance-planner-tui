@@ -2,11 +2,13 @@
 
 TODO:
 
+- allow disabling mouse support so that things can be copied (config propery, or even through a shortcut?)
 - `ctrl+F` and `/` for search
 - Home and End keys should navigate to the top left & bottom right columns when already at the leftmost column/row
 - write logs to xdg cache dir
 - remind users that the Tab key is used for navigating through the results form
 - update help file to show actual keybindings
+- customize colors (later!)
 
 ## keybindings
 

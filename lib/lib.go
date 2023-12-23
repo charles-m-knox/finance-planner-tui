@@ -222,7 +222,7 @@ func ToggleDayFromWeekdays(weekdays []int, weekday int) []int {
 
 func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance int) ([]Result, error) {
 	if startDate.After(endDate) {
-		return []Result{}, fmt.Errorf("start date is after end date")
+		return []Result{}, fmt.Errorf("start date is after end date: %v vs %v", startDate, endDate)
 	}
 
 	// start by quickly generating an index of every single date from startDate to endDate

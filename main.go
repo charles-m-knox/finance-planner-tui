@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"flag"
@@ -8,10 +9,12 @@ import (
 	"log"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	c "finance-planner-tui/constants"
@@ -49,8 +52,10 @@ var (
 	transactionsTableSortColumn string
 	lastSelectedIndex           int
 
-	// usage example: loadedKeybindings["Ctrl+Z"] = ["undo", "save"]
-	loadedKeybindings map[string][]string
+	// usage example: allKeyBindings["Ctrl+Z"] = ["undo", "save"]
+	allKeyBindings map[string][]string
+	// usage example: allBoundActions["save"] = ["Ctrl+S", "[gold]Ctrl+X"]
+	allBoundActions map[string][]string
 
 	// the previously focused primitive
 	previous tview.Primitive
@@ -60,18 +65,12 @@ var (
 	transactionsTable      *tview.Table
 	transactionsInputField *tview.InputField
 	// results items:
-	resultsTable          *tview.Table
-	resultsForm           *tview.Form
-	resultsDescription    *tview.TextView
-	resultsRightSide      *tview.Flex
-	latestResults         *[]lib.Result
-	resultsFormStartYear  string
-	resultsFormStartMonth string
-	resultsFormStartDay   string
-	resultsFormEndYear    string
-	resultsFormEndMonth   string
-	resultsFormEndDay     string
-	resultsFormAmount     string
+	resultsTable       *tview.Table
+	resultsForm        *tview.Form
+	resultsDescription *tview.TextView
+	resultsRightSide   *tview.Flex
+	latestResults      *[]lib.Result
+
 	// help page
 	helpModal      *tview.TextView
 	bottomHelpText *tview.TextView
@@ -98,10 +97,163 @@ func init() {
 	}
 }
 
+// merges the default keybindings with the user's customized keybindings.
+//
+// Example: "Ctrl+S": ["save"]
+//
+// Do not
+// use outside of the context of documentation, because this will also modify
+// things like Rune[x] to render properly within a dynamically colored textview.
+// For example, Rune[x] will transform to Rune[x[].
+func GetCombinedKeybindings(kb map[string][]string, def map[string]string) (r map[string][]string) {
+	r = make(map[string][]string)
+	reg := regexp.MustCompile(`^Rune\[.\]$`)
+	for k, v := range def {
+		if reg.MatchString(k) {
+			r[strings.Replace(k, "]", "[]", 1)] = []string{v}
+			continue
+		}
+		r[k] = []string{v}
+	}
+
+	for k, v := range kb {
+		// higlight custom key bindings
+		formattedActions := []string{}
+		for _, action := range v {
+			formattedActions = append(formattedActions, fmt.Sprintf("[gold::b]%v[-:-:-:-]", action))
+		}
+		if reg.MatchString(k) {
+			r[strings.Replace(k, "]", "[]", 1)] = v
+			continue
+		}
+		// delete the old keybinding and reformat it to show that it's customized
+		formattedKeybinding := fmt.Sprintf("[gold::b]%v[-:-:-:-]", k)
+		delete(r, k)
+		r[formattedKeybinding] = v
+	}
+
+	return r
+}
+
+// merges the default keybindings with the user's customized keybindings, except
+// unlike GetCombinedKeybindings, this will list every Action as the primary map
+// key, and the keybindings are the map values. There may be multiple
+// keybindings for a single action. In the event that there is a chained
+// keybinding, such as Ctrl+X mapping to save+quit, the keybinding will be
+// rendered lightgreen instead of gold (which is the norm for custom
+// keybindings).
+//
+// Example: "save": []string{"[lightgreen]Ctrl+X[-]", "Ctrl+S"}
+//
+// Keybindings are inserted in order of priority - custom keybindings will be at
+// the 0-based index of the slice, so that various UI elements can quickly
+// render the last-defined keybinding (not all UI elements have the space to
+// show every keybinding. Plus, the help file shows all defined keybindings).
+//
+// Do not use outside of the context of documentation, because this will also
+// modify things like Rune[x] to render properly within a dynamically colored
+// textview. For example, Rune[x] will transform to Rune[x[].
+func GetAllBoundActions(kb map[string][]string, def map[string]string) (r map[string][]string) {
+	r = make(map[string][]string)
+	reg := regexp.MustCompile(`^Rune\[.\]$`)
+
+	// handle default actions first
+	for binding, action := range def {
+		fixedBinding := string(binding)
+		if reg.MatchString(fixedBinding) {
+			fixedBinding = strings.Replace(fixedBinding, "]", "[]", 1)
+		}
+		// if reg.MatchString(binding) {
+		// 	r[strings.Replace(binding, "]", "[]", 1)] = []string{action}
+		// 	continue
+		// }
+		r[action] = []string{fixedBinding}
+	}
+
+	// higlight custom key bindings next
+	for binding, actions := range kb {
+
+		// formattedActions := []string{}
+
+		color := "gold"
+		if len(actions) > 1 {
+			color = "#aaffee"
+		}
+
+		// for _, action := range actions {
+		// 	formattedActions = append(formattedActions, fmt.Sprintf("[%v::b]%v[-:-:-:-]", color, action))
+		// }
+
+		fixedBinding := string(binding)
+		if reg.MatchString(fixedBinding) {
+			fixedBinding = strings.Replace(fixedBinding, "]", "[]", 1)
+		}
+		formattedBinding := fmt.Sprintf("[%v::b]%v[-:-:-:-]", color, fixedBinding)
+
+		for _, action := range actions {
+			r[action] = slices.Insert(r[action], 0, formattedBinding)
+		}
+		// for existingActions, existingBindings := range r {
+		// 	if
+		// }
+
+		// delete the old keybinding and reformat it to show that it's customized
+		// formattedKeybinding := fmt.Sprintf("[gold::b]%v[-:-:-:-]", binding)
+		// delete(r, binding)
+
+		// r[formattedKeybinding] = actions
+	}
+
+	return r
+}
+
+func getHelpText(conf m.Config, combinedKeybindings, combinedActions map[string][]string) (output string) {
+	type tmplDataShape struct {
+		Conf                m.Config
+		AllActions          []string
+		DefaultKeybindings  map[string]string
+		CombinedKeybindings map[string][]string
+		CombinedActions     map[string][]string
+		Explanations        map[string]string
+	}
+
+	tmplData := tmplDataShape{
+		Conf:                conf,
+		AllActions:          c.ALL_ACTIONS,
+		DefaultKeybindings:  c.DEFAULT_MAPPINGS,
+		CombinedKeybindings: combinedKeybindings,
+		CombinedActions:     combinedActions,
+		Explanations:        c.ACTION_EXPLANATIONS,
+	}
+
+	tmpl, err := template.New("help").Parse(c.HelpTextTemplate)
+	if err != nil {
+		log.Fatalf("failed to parse help text template: %v", err.Error())
+	}
+	var b bytes.Buffer
+	err = tmpl.Execute(&b, tmplData)
+	if err != nil {
+		log.Fatalf("failed to render help text: %v", err.Error())
+	}
+
+	return b.String()
+}
+
 func getHelpModal() {
 	helpModal = tview.NewTextView()
 	helpModal.SetBorder(true)
-	helpModal.SetText(getHelpText(config)).SetDynamicColors(true)
+	helpModal.SetText(getHelpText(config, allKeyBindings, allBoundActions)).SetDynamicColors(true)
+}
+
+// returns the first configured keybinding for the provided action. returns
+// "n/a" if none defined
+func getBinding(action string) string {
+	bindings, ok := allBoundActions[action]
+	if !ok || len(bindings) < 1 {
+		return ""
+	}
+
+	return bindings[0]
 }
 
 func setBottomHelpText() {
@@ -110,26 +262,24 @@ func setBottomHelpText() {
 	var sb strings.Builder
 
 	if p == PAGE_HELP {
-		sb.WriteString("[gray][F1[][gold] help ")
+		sb.WriteString(fmt.Sprintf("%v[-:-:-:-][gold] help [-:-:-:-]", getBinding(c.ACTION_GLOBAL_HELP)))
 	} else {
-		sb.WriteString("[gray][F1[][gray] help ")
+		sb.WriteString(fmt.Sprintf("%v[-:-:-:-][gray] help [-:-:-:-]", getBinding(c.ACTION_GLOBAL_HELP)))
 	}
 
 	if p == PAGE_PROFILES {
-		sb.WriteString("[gray][F2[][gold] profiles & transactions ")
+		sb.WriteString(fmt.Sprintf("%v[-:-:-:-][gold] profiles & transactions [-:-:-:-]", getBinding(c.ACTION_PROFILES)))
 	} else {
-		sb.WriteString("[gray][F2[][gray] profiles & transactions ")
+		sb.WriteString(fmt.Sprintf("%v[-:-:-:-][gray] profiles & transactions [-:-:-:-]", getBinding(c.ACTION_PROFILES)))
 	}
 
 	if p == PAGE_RESULTS {
-		sb.WriteString("[gray][F3[][gold] results ")
+		sb.WriteString(fmt.Sprintf("%v[-:-:-:-][gold] results [-:-:-:-]", getBinding(c.ACTION_RESULTS)))
 	} else {
-		sb.WriteString("[gray][F3[][gray] results")
+		sb.WriteString(fmt.Sprintf("%v[-:-:-:-][gray] results[-:-:-:-]", getBinding(c.ACTION_RESULTS)))
 	}
 
 	bottomHelpText.SetText(sb.String())
-
-	// return "[white][F3][gray] results [white][ctrl+s][gray] save"
 }
 
 func loadConfig() (c m.Config, err error) {
@@ -1698,7 +1848,7 @@ func modified() {
 		// 	}
 		// }
 
-		statusText.SetText(fmt.Sprintf("[white] [ctrl+s]=save [gray][%v/%v]", undoBufferPos+1, len(undoBuffer)))
+		statusText.SetText(fmt.Sprintf("[white] %v*[gray][%v/%v]", configFile, undoBufferPos+1, len(undoBuffer)))
 	}
 }
 
@@ -1762,59 +1912,58 @@ func setTransactionsTableSort(column string) {
 func updateResultsForm() {
 	resultsForm.Clear(true)
 	resultsForm.SetTitle("Parameters")
-	getDefaultsForResultsForm()
+
+	if selectedProfile == nil {
+		return
+	}
+
+	setSelectedProfileDefaults()
+
 	resultsForm.
-		AddInputField("Start Year:", resultsFormStartYear, 0, func(textToCheck string, lastChar rune) bool {
+		AddInputField("Start Year:", selectedProfile.StartYear, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 0 {
 				return false
 			}
-			syncResultsFormWithProfile()
 			return true
-		}, func(text string) { resultsFormStartYear = text }).
-		AddInputField("Start Month:", resultsFormStartMonth, 0, func(textToCheck string, lastChar rune) bool {
+		}, func(text string) { selectedProfile.StartYear = text }).
+		AddInputField("Start Month:", selectedProfile.StartMonth, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 1 || i > 12 {
 				return false
 			}
-			syncResultsFormWithProfile()
 			return true
-		}, func(text string) { resultsFormStartMonth = text }).
-		AddInputField("Start Day:", resultsFormStartDay, 0, func(textToCheck string, lastChar rune) bool {
+		}, func(text string) { selectedProfile.StartMonth = text }).
+		AddInputField("Start Day:", selectedProfile.StartDay, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 0 || i > 31 {
 				return false
 			}
-			syncResultsFormWithProfile()
 			return true
-		}, func(text string) { resultsFormStartDay = text }).
-		AddInputField("End Year:", resultsFormEndYear, 0, func(textToCheck string, lastChar rune) bool {
+		}, func(text string) { selectedProfile.StartDay = text }).
+		AddInputField("End Year:", selectedProfile.EndYear, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 0 {
 				return false
 			}
-			syncResultsFormWithProfile()
 			return true
-		}, func(text string) { resultsFormEndYear = text }).
-		AddInputField("End Month:", resultsFormEndMonth, 0, func(textToCheck string, lastChar rune) bool {
+		}, func(text string) { selectedProfile.EndYear = text }).
+		AddInputField("End Month:", selectedProfile.EndMonth, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 1 || i > 12 {
 				return false
 			}
-			syncResultsFormWithProfile()
 			return true
-		}, func(text string) { resultsFormEndMonth = text }).
-		AddInputField("End Day:", resultsFormEndDay, 0, func(textToCheck string, lastChar rune) bool {
+		}, func(text string) { selectedProfile.EndMonth = text }).
+		AddInputField("End Day:", selectedProfile.EndDay, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
 			if err != nil || i < 0 || i > 31 {
 				return false
 			}
-			syncResultsFormWithProfile()
 			return true
-		}, func(text string) { resultsFormEndDay = text }).
-		AddInputField("Starting Balance:", resultsFormAmount, 0, nil, func(text string) {
-			resultsFormAmount = lib.FormatAsCurrency(int(lib.ParseDollarAmount(text, true)))
-			syncResultsFormWithProfile()
+		}, func(text string) { selectedProfile.EndDay = text }).
+		AddInputField("Starting Balance:", selectedProfile.StartingBalance, 0, nil, func(text string) {
+			selectedProfile.StartingBalance = lib.FormatAsCurrency(int(lib.ParseDollarAmount(text, true)))
 		}).
 		AddButton("Submit", func() {
 			getResultsTable()
@@ -1850,10 +1999,6 @@ func getResultsFlex() {
 		SetSelectable(true, false). // set row & cells to be selectable
 		SetSeparator(' ')
 
-	// resultsTableFlex := tview.NewFlex().SetDirection(tview.FlexRow)
-	// resultsTableFlex.AddItem(resultsTable, 0, 1, false)
-	// resultsTableFlex.SetBorder(true)
-
 	resultsRightSide = tview.NewFlex().SetDirection(tview.FlexRow)
 	resultsRightSide.AddItem(resultsTable, 0, 2, true).AddItem(resultsDescription, 0, 1, false)
 
@@ -1883,96 +2028,70 @@ func setResultsFormPreset(startDate string, endDate string) {
 		end = start.Add(time.Hour * 24 * 365 * 5)
 	}
 
-	resultsFormStartYear = fmt.Sprint(start.Year())
-	resultsFormStartMonth = fmt.Sprint(int(start.Month()))
-	resultsFormStartDay = fmt.Sprint(start.Day())
+	selectedProfile.StartYear = fmt.Sprint(start.Year())
+	selectedProfile.StartMonth = fmt.Sprint(int(start.Month()))
+	selectedProfile.StartDay = fmt.Sprint(start.Day())
 
-	resultsFormEndYear = fmt.Sprint(end.Year())
-	resultsFormEndMonth = fmt.Sprint(int(end.Month()))
-	resultsFormEndDay = fmt.Sprint(end.Day())
-
-	syncResultsFormWithProfile()
+	selectedProfile.EndYear = fmt.Sprint(end.Year())
+	selectedProfile.EndMonth = fmt.Sprint(int(end.Month()))
+	selectedProfile.EndDay = fmt.Sprint(end.Day())
 }
 
-func getDefaultsForResultsForm() {
-	noProfile := selectedProfile == nil
-
-	now := time.Now()
-	yr := now.Add(time.Hour * 24 * 365)
-
-	if !noProfile {
-		resultsFormStartYear = selectedProfile.StartYear
-		resultsFormStartMonth = selectedProfile.StartMonth
-		resultsFormStartDay = selectedProfile.StartDay
-		resultsFormEndYear = selectedProfile.EndYear
-		resultsFormEndMonth = selectedProfile.EndMonth
-		resultsFormEndDay = selectedProfile.EndDay
-		resultsFormAmount = selectedProfile.StartingBalance
-	}
-
-	if noProfile || selectedProfile.StartYear == "" {
-		resultsFormStartYear = fmt.Sprint(now.Year())
-	}
-	if noProfile || selectedProfile.StartMonth == "" {
-		resultsFormStartMonth = fmt.Sprint(int(now.Month()))
-	}
-	if noProfile || selectedProfile.StartDay == "" {
-		resultsFormStartDay = fmt.Sprint(now.Day())
-	}
-
-	if noProfile || selectedProfile.EndYear == "" {
-		resultsFormEndYear = fmt.Sprint(yr.Year())
-	}
-	if noProfile || selectedProfile.EndMonth == "" {
-		resultsFormEndMonth = fmt.Sprint(int(yr.Month()))
-	}
-	if noProfile || selectedProfile.EndDay == "" {
-		resultsFormEndDay = fmt.Sprint(yr.Day())
-	}
-
-	if noProfile || selectedProfile.StartingBalance == "" {
-		resultsFormAmount = lib.FormatAsCurrency(50000)
-	}
-
-	syncResultsFormWithProfile()
-}
-
-// persists values from the results form's input fields to the selectedProfile
-// so they can be saved to configuration for later recall
-func syncResultsFormWithProfile() {
+// sets sensible default values for the currently selected profile, if they are
+// not defined. If there is no selectedProfile, this will do nothing
+func setSelectedProfileDefaults() {
 	if selectedProfile == nil {
 		return
 	}
 
-	selectedProfile.StartingBalance = resultsFormAmount
-	selectedProfile.StartDay = resultsFormStartDay
-	selectedProfile.StartMonth = resultsFormStartMonth
-	selectedProfile.StartYear = resultsFormStartYear
-	selectedProfile.EndDay = resultsFormEndDay
-	selectedProfile.EndMonth = resultsFormEndMonth
-	selectedProfile.EndYear = resultsFormEndYear
+	now := time.Now()
+	yr := now.Add(time.Hour * 24 * 365)
+
+	if selectedProfile.StartYear == "" {
+		selectedProfile.StartYear = fmt.Sprint(now.Year())
+	}
+	if selectedProfile.StartMonth == "" {
+		selectedProfile.StartMonth = fmt.Sprint(int(now.Month()))
+	}
+	if selectedProfile.StartDay == "" {
+		selectedProfile.StartDay = fmt.Sprint(now.Day())
+	}
+
+	if selectedProfile.EndYear == "" {
+		selectedProfile.EndYear = fmt.Sprint(yr.Year())
+	}
+	if selectedProfile.EndMonth == "" {
+		selectedProfile.EndMonth = fmt.Sprint(int(yr.Month()))
+	}
+	if selectedProfile.EndDay == "" {
+		selectedProfile.EndDay = fmt.Sprint(yr.Day())
+	}
+
+	if selectedProfile.StartingBalance == "" {
+		selectedProfile.StartingBalance = lib.FormatAsCurrency(50000)
+	}
 }
 
 func getResultsTable() {
 	resultsTable.Clear()
 
-	getDefaultsForResultsForm()
+	setSelectedProfileDefaults()
 
 	// get results
 	results, err := lib.GenerateResultsFromDateStrings(
 		&(selectedProfile.TX),
-		int(lib.ParseDollarAmount(resultsFormAmount, true)),
+		int(lib.ParseDollarAmount(selectedProfile.StartingBalance, true)),
 		fmt.Sprintf(
 			"%v-%v-%v",
-			resultsFormStartYear,
-			resultsFormStartMonth,
-			resultsFormStartDay,
+			selectedProfile.StartYear,
+			selectedProfile.StartMonth,
+			selectedProfile.StartDay,
 		),
 		fmt.Sprintf(
 			"%v-%v-%v",
-			resultsFormEndYear,
-			resultsFormEndMonth,
-			resultsFormEndDay,
+			selectedProfile.EndYear,
+			selectedProfile.EndMonth,
+			selectedProfile.EndDay,
 		),
 	)
 	if err != nil {
@@ -2992,6 +3111,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to marshal config for loading into undo buffer: %v", err.Error())
 	}
+
+	allKeyBindings = GetCombinedKeybindings(config.Keybindings, c.DEFAULT_MAPPINGS)
+	allBoundActions = GetAllBoundActions(config.Keybindings, c.DEFAULT_MAPPINGS)
 
 	undoBuffer = [][]byte{b}
 	undoBufferPos = 0
