@@ -2099,6 +2099,9 @@ func getResultsTable() {
 		panic(err)
 	}
 
+	// this may help with garbage collection
+	latestResults = nil
+
 	latestResults = &results
 
 	// set up headers
@@ -3002,18 +3005,19 @@ func action(action string, e *tcell.EventKey) *tcell.EventKey {
 		if p == PAGE_RESULTS {
 			alreadyOnPage = true
 		}
-		getResultsTable()
 		pages.SwitchToPage(PAGE_RESULTS)
 		setBottomHelpText()
-		if latestResults == nil {
-			return e
-		}
-		stats, err := lib.GetStats(*latestResults)
-		if err != nil {
-			return nil
-		}
-		resultsDescription.SetText(stats)
+
 		if alreadyOnPage {
+			getResultsTable()
+			if latestResults != nil {
+				stats, err := lib.GetStats(*latestResults)
+				if err != nil {
+					return nil
+				}
+				resultsDescription.SetText(stats)
+				return nil
+			}
 			app.SetFocus(resultsTable)
 		}
 		return nil

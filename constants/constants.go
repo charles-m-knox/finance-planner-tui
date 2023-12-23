@@ -83,8 +83,8 @@ const (
 const (
 	COLOR_COLUMN_ORDER     = "[gray]"
 	COLOR_COLUMN_AMOUNT    = "[gold]"
-	COLOR_COLUMN_ACTIVE    = "[#8899dd]"
-	COLOR_COLUMN_NAME      = "[blue]"
+	COLOR_COLUMN_ACTIVE    = "[white]"
+	COLOR_COLUMN_NAME      = "[#8899dd]"
 	COLOR_COLUMN_FREQUENCY = "[#70dd70]"
 	COLOR_COLUMN_INTERVAL  = "[#de9a9a]"
 	COLOR_COLUMN_MONDAY    = "[red]"
@@ -249,7 +249,7 @@ const (
 	ACTION_EXPLANATION_BACKTAB     = "(shift+tab default) moves focus between elements, varies based on context"
 	ACTION_EXPLANATION_TAB         = "moves focus between elements, varies based on context"
 	ACTION_EXPLANATION_ESCAPE      = "escape the current context, press enough times and app will prompt to exit"
-	ACTION_EXPLANATION_RESULTS     = "immediately takes you to the results page"
+	ACTION_EXPLANATION_RESULTS     = "takes you to the results page; press again to get some stats and refresh"
 	ACTION_EXPLANATION_PROFILES    = "immediately takes you to the profiles page"
 	ACTION_EXPLANATION_GLOBAL_HELP = "immediately takes you to the help page"
 	ACTION_EXPLANATION_HELP        = "context-specific help, if available; otherwise, help page"
@@ -363,7 +363,7 @@ const HelpTextTemplate = `[lightgreen::b]Finance Planner[-:-:-:-]
                 |  ___(_)_ __   __ _ _ __   ___ ___
                 | |_  | | '_ \ / _  | '_ \ / __/ _ \
                 |  _| | | | | | (_| | | | | (_|  __/
-                |_|__ |_|_| |_|\__,_|_| |_|\___\___|[lightgreen]
+                |[lightgreen]_[gold]|[lightgreen]__[gold] |[lightgreen]_[gold]|_| |_|\__,_|_| |_|\___\___|[lightgreen]
                 |  _ \| | __ _ _ __  _ __   ___ _ __
                 | |_) | |/ _  | '_ \| '_ \ / _ \ '__|
                 |  __/| | (_| | | | | | | |  __/ |
@@ -426,6 +426,21 @@ Each transaction has the following fields:
 - [::b]Ends[-]:      This is the last acceptable date for recurrence. Behavior is the
              exact same as the Starts field.
 - [::b]Note[-]:      A human-readable field for you to put arbitrary notes in.
+
+[lightgreen::b]Results[-:-:-:-]
+
+The results page allows you to see a projection of your finances into the
+future. It shows the following:
+
+- A form on the left containing start & end dates, and the starting balance
+  for the projection to start with
+- A table containing one day per row, with each of the transactions that
+  occurred on that day, as well as other numbers such as the total expenses,
+  running balance since the first day of the projection, etc.
+
+The same hotkey that opens the results page can be pressed multiple times to
+re-submit the results form and will also show some useful statistics about
+your finances.
 
 [lightgreen::b]Keyboard Shortcuts: Current & Default[-:-:-:-]
 
