@@ -43,6 +43,8 @@ const (
 	ONE_YR             = "1year"
 	FIVE_YR            = "5year"
 
+	DEFAULT_CONFIG = "config.yml"
+
 	CONFIG_VERSION = "1"
 )
 

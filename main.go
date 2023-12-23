@@ -87,7 +87,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "f", "config.yml", "the file to load from and save to")
+	flag.StringVar(&configFile, "f", "", "the file to load from and save to")
 	flag.BoolVar(&shouldMigrate, "migrate", false, "whether or not to migrate a file named conf.json in the current directory from a previous config version to the latest version and save it as migrated.yml")
 	flag.BoolVar(&keyboardEchoMode, "kb", false, "if true, all keyboard inputs except escape and ctrl+c will be echoed to the bottom left text field of the page. Use this mode to test your preferred keyboard mappings - take the exact text and put it into your keybindings configuration.")
 	flag.Parse()
@@ -282,54 +282,71 @@ func setBottomHelpText() {
 	bottomHelpText.SetText(sb.String())
 }
 
-func loadConfig() (c m.Config, err error) {
-	xdgConfig := path.Join(xdg.ConfigHome, "frequencmd", "config.yml")
-	xdgHome := path.Join(xdg.Home, "frequencmd", "config.yml")
+// attempts to load from the "file" path provided - if not successful,
+// attempts to load from xdg config, then xdg home. Then it sets the global
+// configFile to match the retrieved config
+func loadConfig(file string) (conf m.Config, err error) {
+	xdgConfig := path.Join(xdg.ConfigHome, "finance-planner-tui", "config.yml")
+	xdgHome := path.Join(xdg.Home, "finance-planner-tui", "config.yml")
 
-	b, err := os.ReadFile(configFile)
+	specificFileGiven := true
+	if file == "" {
+		file = c.DEFAULT_CONFIG
+		specificFileGiven = false
+	}
+
+	b, err := os.ReadFile(file)
 	if err == nil {
-		err = yaml.Unmarshal(b, &c)
+		err = yaml.Unmarshal(b, &conf)
 		if err != nil {
-			return c, fmt.Errorf(
+			return conf, fmt.Errorf(
 				"failed to read config from %v: %v",
 				configFile,
 				err.Error(),
 			)
 		}
-		return c, nil
+		return conf, nil
+	}
+
+	// if a file was specified via the -f flag, but it doesn't exist, proceed to
+	// set the configFile global var to it so that it will be written on next
+	// save
+	if specificFileGiven {
+		configFile = file
+		return conf, nil
 	}
 
 	b, err = os.ReadFile(xdgConfig)
 	if err == nil {
 		configFile = xdgConfig
-		err = yaml.Unmarshal(b, &c)
+		err = yaml.Unmarshal(b, &conf)
 		if err != nil {
-			return c, fmt.Errorf(
+			return conf, fmt.Errorf(
 				"failed to read config from %v: %v",
 				xdgConfig,
 				err.Error(),
 			)
 		}
-		return c, nil
+		return conf, nil
 	}
 
 	b, err = os.ReadFile(xdgHome)
 	if err == nil {
 		configFile = xdgHome
-		err = yaml.Unmarshal(b, &c)
+		err = yaml.Unmarshal(b, &conf)
 		if err != nil {
-			return c, fmt.Errorf(
+			return conf, fmt.Errorf(
 				"failed to read config from %v: %v",
 				xdgHome,
 				err.Error(),
 			)
 		}
-		return c, nil
+		return conf, nil
 	}
 
 	// if the config file doesn't exist, create it at xdgHome
 	configFile = xdgHome
-	return c, nil
+	return conf, nil
 
 	// return c, fmt.Errorf(
 	// 	"failed to read config from %v, %v, and %v: %v",
@@ -1142,7 +1159,7 @@ func getTransactionsTable() {
 						return
 					default:
 						d, err := strconv.ParseInt(transactionsInputField.GetText(), 10, 64)
-						if err != nil || d < 1 {
+						if err != nil || d < 0 {
 							activateTransactionsInputFieldNoAutocompleteReset("invalid interval given:", fmt.Sprint(selectedProfile.TX[i].Interval))
 							return
 						}
@@ -1392,7 +1409,7 @@ func getTransactionsTable() {
 						return
 					default:
 						d, err := strconv.ParseInt(transactionsInputField.GetText(), 10, 64)
-						if err != nil || d < 1 || d > 31 {
+						if err != nil || d < 0 || d > 31 {
 							// start over
 							activateTransactionsInputFieldNoAutocompleteReset("invalid day given:", fmt.Sprint(selectedProfile.TX[i].StartsDay))
 							return
@@ -1426,7 +1443,7 @@ func getTransactionsTable() {
 						return
 					default:
 						d, err := strconv.ParseInt(transactionsInputField.GetText(), 10, 64)
-						if err != nil || d > 12 || d < 1 {
+						if err != nil || d > 12 || d < 0 {
 							// start over
 							activateTransactionsInputFieldNoAutocompleteReset("invalid month given:", fmt.Sprint(selectedProfile.TX[i].StartsMonth))
 							return
@@ -1510,7 +1527,7 @@ func getTransactionsTable() {
 						return
 					default:
 						d, err := strconv.ParseInt(transactionsInputField.GetText(), 10, 64)
-						if err != nil || d < 1 || d > 31 {
+						if err != nil || d < 0 || d > 31 {
 							// start over
 							activateTransactionsInputFieldNoAutocompleteReset("invalid day given:", fmt.Sprint(selectedProfile.TX[i].EndsDay))
 							return
@@ -1543,7 +1560,7 @@ func getTransactionsTable() {
 						return
 					default:
 						d, err := strconv.ParseInt(transactionsInputField.GetText(), 10, 64)
-						if err != nil || d > 12 || d < 1 {
+						if err != nil || d > 12 || d < 0 {
 							// start over
 							activateTransactionsInputFieldNoAutocompleteReset("invalid month given:", fmt.Sprint(selectedProfile.TX[i].EndsMonth))
 							return
@@ -1929,7 +1946,7 @@ func updateResultsForm() {
 		}, func(text string) { selectedProfile.StartYear = text }).
 		AddInputField("Start Month:", selectedProfile.StartMonth, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 1 || i > 12 {
+			if err != nil || i < 0 || i > 12 {
 				return false
 			}
 			return true
@@ -1950,7 +1967,7 @@ func updateResultsForm() {
 		}, func(text string) { selectedProfile.EndYear = text }).
 		AddInputField("End Month:", selectedProfile.EndMonth, 0, func(textToCheck string, lastChar rune) bool {
 			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 1 || i > 12 {
+			if err != nil || i < 0 || i > 12 {
 				return false
 			}
 			return true
@@ -2405,7 +2422,6 @@ func action(action string, e *tcell.EventKey) *tcell.EventKey {
 				// them
 				deleted := []lib.TX{}
 				newTX := []lib.TX{}
-				// for i := len(selectedProfile.TX) - 1; i >= 0; i-- {
 				for i := range selectedProfile.TX {
 					if selectedProfile.TX[i].ID == txid {
 						// this is the target to move to
@@ -2414,14 +2430,11 @@ func action(action string, e *tcell.EventKey) *tcell.EventKey {
 					} else if selectedProfile.TX[i].Selected {
 						selectedProfile.TX[i].Selected = true
 						deleted = append(deleted, selectedProfile.TX[i])
-						// selectedProfile.TX = slices.Delete(selectedProfile.TX, i, i+1)
 					} else {
 						selectedProfile.TX[i].Selected = false
 						newTX = append(newTX, selectedProfile.TX[i])
 					}
 				}
-
-				// fmt.Println(numSelected)
 
 				selectedProfile.TX = newTX
 
@@ -2799,6 +2812,7 @@ func action(action string, e *tcell.EventKey) *tcell.EventKey {
 					app.SetFocus(profileList)
 					return nil
 				}
+				return e
 			default:
 				return e
 			}
@@ -3095,7 +3109,7 @@ func bindings() {
 func main() {
 	var err error
 
-	config, err = loadConfig()
+	config, err = loadConfig(configFile)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err.Error())
 	}
