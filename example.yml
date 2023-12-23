@@ -1,0 +1,649 @@
+keybindings: {}
+profiles:
+    - transactions:
+        - order: 1
+          amount: -1500
+          active: true
+          name: Netflix
+          note: ""
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 22
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 52b94dd6-3897-4a91-96c7-3948c32c66b3
+          createdAt: 2023-12-22T21:40:22.679120896-07:00
+          updatedAt: 2023-12-22T21:40:22.679120896-07:00
+          selected: false
+        - order: 2
+          amount: -300000
+          active: true
+          name: Rent/Mortgage
+          note: ""
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 1
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 42822105-8922-4c54-aed8-502ab49c0527
+          createdAt: 2023-12-22T22:00:30.432485164-07:00
+          updatedAt: 2023-12-22T22:00:30.432485164-07:00
+          selected: false
+        - order: 3
+          amount: -7500
+          active: true
+          name: City Utilities
+          note: ""
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 1
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: de5656db-bffb-46b4-8dec-f0b79e109563
+          createdAt: 2023-12-22T22:01:12.900162799-07:00
+          updatedAt: 2023-12-22T22:01:12.900162799-07:00
+          selected: false
+        - order: 4
+          amount: -7500
+          active: true
+          name: Phone
+          note: ""
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 1
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 1c23c279-7939-4db5-ba37-b09702acd022
+          createdAt: 2023-12-22T22:02:57.822827988-07:00
+          updatedAt: 2023-12-22T22:02:57.822827988-07:00
+          selected: false
+        - order: 5
+          amount: -10000
+          active: true
+          name: Internet
+          note: ""
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: f6dff06e-7f64-4e53-951b-02811269648d
+          createdAt: 2023-12-22T22:03:38.295696682-07:00
+          updatedAt: 2023-12-22T22:03:38.295696682-07:00
+          selected: false
+        - order: 6
+          amount: -10000
+          active: true
+          name: Gas Jan
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: b4bffaff-6e18-4859-901b-b62940a9e8b9
+          createdAt: 2023-12-22T22:04:40.973989651-07:00
+          updatedAt: 2023-12-22T22:04:40.973989651-07:00
+          selected: false
+        - order: 7
+          amount: -10000
+          active: true
+          name: Gas Feb
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 2
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: f56c4637-ad6a-436e-b35f-f09d8dc757f1
+          createdAt: 2023-12-22T22:05:16.476338879-07:00
+          updatedAt: 2023-12-22T22:05:16.476338879-07:00
+          selected: false
+        - order: 8
+          amount: -10000
+          active: true
+          name: Gas Mar
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 3
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 375d64d5-5368-4a41-9cf4-a6fccafaab7e
+          createdAt: 2023-12-22T22:05:17.687893896-07:00
+          updatedAt: 2023-12-22T22:05:17.687893896-07:00
+          selected: false
+        - order: 9
+          amount: -5000
+          active: true
+          name: Gas Apr
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 4
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: e7b45d99-9233-49c0-8e14-5e75f4851109
+          createdAt: 2023-12-22T22:05:18.195718944-07:00
+          updatedAt: 2023-12-22T22:05:18.195718944-07:00
+          selected: false
+        - order: 10
+          amount: -4000
+          active: true
+          name: Gas May
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 5
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 934d28e7-83ed-4ecd-9da5-bbd45ba3e9d2
+          createdAt: 2023-12-22T22:05:18.534941025-07:00
+          updatedAt: 2023-12-22T22:05:18.534941025-07:00
+          selected: false
+        - order: 11
+          amount: -2000
+          active: true
+          name: Gas June
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 6
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: fe570be8-73b5-41a7-9bea-31f9a69e700d
+          createdAt: 2023-12-22T22:05:18.852109264-07:00
+          updatedAt: 2023-12-22T22:05:18.852109264-07:00
+          selected: false
+        - order: 12
+          amount: -2000
+          active: true
+          name: Gas Jul
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 7
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 4ba9d1e6-6d8e-470f-8986-0cc47b456655
+          createdAt: 2023-12-22T22:05:19.154122654-07:00
+          updatedAt: 2023-12-22T22:05:19.154122654-07:00
+          selected: false
+        - order: 13
+          amount: -2000
+          active: true
+          name: Gas Aug
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 8
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 6a32bff1-9302-408e-a5d4-5d7bb2d06ba0
+          createdAt: 2023-12-22T22:05:19.43808616-07:00
+          updatedAt: 2023-12-22T22:05:19.43808616-07:00
+          selected: false
+        - order: 14
+          amount: -2000
+          active: true
+          name: Gas Sep
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 9
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: b4647f04-217d-4b39-867b-ffe75385880d
+          createdAt: 2023-12-22T22:05:19.71182338-07:00
+          updatedAt: 2023-12-22T22:05:19.71182338-07:00
+          selected: false
+        - order: 15
+          amount: -2000
+          active: true
+          name: Gas Oct
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 10
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 25e35ade-d086-4f50-81d1-1af72b66a25d
+          createdAt: 2023-12-22T22:05:19.973627862-07:00
+          updatedAt: 2023-12-22T22:05:19.973627862-07:00
+          selected: false
+        - order: 16
+          amount: -10000
+          active: true
+          name: Gas Nov
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 11
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: aca4c9f0-34ab-480a-a966-7793755b35ae
+          createdAt: 2023-12-22T22:05:20.235032665-07:00
+          updatedAt: 2023-12-22T22:05:20.235032665-07:00
+          selected: false
+        - order: 17
+          amount: -10000
+          active: true
+          name: Gas Dec
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 12
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 157b7174-e794-47e9-823f-1dea1ad740f4
+          createdAt: 2023-12-22T22:08:03.471822615-07:00
+          updatedAt: 2023-12-22T22:08:03.471822615-07:00
+          selected: false
+        - order: 18
+          amount: -10000
+          active: true
+          name: Electric Jan
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 1577dddb-502a-4e1b-8222-f8a385fd5606
+          createdAt: 2023-12-22T22:09:13.380471843-07:00
+          updatedAt: 2023-12-22T22:09:13.380471843-07:00
+          selected: false
+        - order: 19
+          amount: -10000
+          active: true
+          name: Electric Feb
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 2
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: b0df3006-8d98-40e8-8c18-ba69a40f6818
+          createdAt: 2023-12-22T22:09:13.380494101-07:00
+          updatedAt: 2023-12-22T22:09:13.380494101-07:00
+          selected: false
+        - order: 20
+          amount: -10000
+          active: true
+          name: Electric Mar
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 3
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: dde0e61f-28c1-4d66-9907-1dc70746e3bd
+          createdAt: 2023-12-22T22:09:13.380503178-07:00
+          updatedAt: 2023-12-22T22:09:13.380503178-07:00
+          selected: false
+        - order: 21
+          amount: -5000
+          active: true
+          name: Electric Apr
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 4
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 685f4927-05af-4490-a0a1-3d6282d75a18
+          createdAt: 2023-12-22T22:09:13.380512043-07:00
+          updatedAt: 2023-12-22T22:09:13.380512043-07:00
+          selected: false
+        - order: 22
+          amount: -4000
+          active: true
+          name: Electric May
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 5
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 08a43adc-8ec5-4b01-819c-5a10007a2983
+          createdAt: 2023-12-22T22:09:13.380518353-07:00
+          updatedAt: 2023-12-22T22:09:13.380518353-07:00
+          selected: false
+        - order: 23
+          amount: -2000
+          active: true
+          name: Electric June
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 6
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: ec726e6e-caa5-4c65-a501-0492607d102b
+          createdAt: 2023-12-22T22:09:13.38052477-07:00
+          updatedAt: 2023-12-22T22:09:13.38052477-07:00
+          selected: false
+        - order: 24
+          amount: -2000
+          active: true
+          name: Electric Jul
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 7
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 113475cb-65f0-437e-898d-8107377f9946
+          createdAt: 2023-12-22T22:09:13.380530972-07:00
+          updatedAt: 2023-12-22T22:09:13.380530972-07:00
+          selected: false
+        - order: 25
+          amount: -2000
+          active: true
+          name: Electric Aug
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 8
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 9fe7cbb7-2f5e-4280-9b65-f393ef6ae12b
+          createdAt: 2023-12-22T22:09:13.380536451-07:00
+          updatedAt: 2023-12-22T22:09:13.380536451-07:00
+          selected: false
+        - order: 26
+          amount: -2000
+          active: true
+          name: Electric Sep
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 9
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: ae986427-ed9c-4683-addd-3e1e42d159f9
+          createdAt: 2023-12-22T22:09:13.380557536-07:00
+          updatedAt: 2023-12-22T22:09:13.380557536-07:00
+          selected: false
+        - order: 27
+          amount: -2000
+          active: true
+          name: Electric Oct
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 10
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 35a6f9e1-8c86-493f-84b4-3120a11e2b12
+          createdAt: 2023-12-22T22:09:13.380564516-07:00
+          updatedAt: 2023-12-22T22:09:13.380564516-07:00
+          selected: false
+        - order: 28
+          amount: -10000
+          active: true
+          name: Electric Nov
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 11
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: d53e98ab-65c5-4676-a618-fa66cb4452a7
+          createdAt: 2023-12-22T22:09:13.380570528-07:00
+          updatedAt: 2023-12-22T22:09:13.380570528-07:00
+          selected: false
+        - order: 29
+          amount: -10000
+          active: true
+          name: Electric Dec
+          note: ""
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 12
+          startsYear: 2024
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 95274670-25e8-4303-89ed-80dff5f59bfa
+          createdAt: 2023-12-22T22:09:13.380957082-07:00
+          updatedAt: 2023-12-22T22:09:13.380957082-07:00
+          selected: false
+        - order: 30
+          amount: -1000
+          active: true
+          name: Eat
+          note: food budget of $10/day
+          rrule: ""
+          frequency: WEEKLY
+          interval: 1
+          weekdays:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+          startsDay: 22
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: a4e5b4e7-4853-4a48-8260-d0c3b5cebece
+          createdAt: 2023-12-22T22:49:50.827712617-07:00
+          updatedAt: 2023-12-22T22:49:50.827712617-07:00
+          selected: false
+        - order: 31
+          amount: 100000
+          active: true
+          name: Paycheck 1
+          note: end of month paycheck
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 1
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 4875f4eb-6558-41c4-bf42-d32e5d8220fd
+          createdAt: 2023-12-22T22:51:55.573309754-07:00
+          updatedAt: 2023-12-22T22:51:55.573309754-07:00
+          selected: false
+        - order: 32
+          amount: 100000
+          active: true
+          name: Paycheck 2
+          note: mid-month paycheck
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 15
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: a4fd0f3b-4068-421b-b09d-db5d2cf227ca
+          createdAt: 2023-12-22T22:53:03.348865026-07:00
+          updatedAt: 2023-12-22T22:53:03.348865026-07:00
+          selected: false
+        - order: 33
+          amount: -1500
+          active: true
+          name: Spotify
+          note: ""
+          rrule: ""
+          frequency: MONTHLY
+          interval: 1
+          weekdays: []
+          startsDay: 22
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: e17475ac-f290-4348-9ebe-b2466258f091
+          createdAt: 2023-12-22T22:53:55.621177084-07:00
+          updatedAt: 2023-12-22T22:53:55.621177084-07:00
+          selected: false
+      name: example
+      selectedRow: 7
+      selectedColumn: 2
+      startingBalance: $500.00
+      startDay: "22"
+      startMonth: "12"
+      startYear: "2023"
+      endDay: "21"
+      endMonth: "12"
+      endYear: "2024"
+undoBufferMaxLength: 0
+version: "1"
