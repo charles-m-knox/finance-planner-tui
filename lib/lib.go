@@ -23,7 +23,7 @@ import (
 )
 
 type TX struct { // transaction
-	Order  int    `yaml:"order"`  // manual ordering
+	// Order  int    `yaml:"order"`  // manual ordering
 	Amount int    `yaml:"amount"` // in cents; 500 = $5.00
 	Active bool   `yaml:"active"`
 	Name   string `yaml:"name"`
@@ -136,7 +136,7 @@ func GetNewTX() TX {
 	now := time.Now()
 	oneMonth := now.Add(time.Hour * 24 * 31)
 	return TX{
-		Order:       0,
+		// Order:       0,
 		Amount:      500,
 		Active:      true,
 		Name:        c.New,
@@ -220,7 +220,7 @@ func ToggleDayFromWeekdays(weekdays []int, weekday int) []int {
 	return returnValue
 }
 
-func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance int) ([]Result, error) {
+func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance int, statusHook func(status string)) ([]Result, error) {
 	if startDate.After(endDate) {
 		return []Result{}, fmt.Errorf("start date is after end date: %v vs %v", startDate, endDate)
 	}
@@ -241,6 +241,8 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 	}
 	allDates := r.All()
 
+	statusHook("preparing dates...")
+
 	for i, dt := range allDates {
 		dtInt := dt.Unix()
 		dates[dtInt] = Result{
@@ -255,9 +257,15 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 	emptyDate := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
 
 	// iterate over every TX definition, starting with its start date
-	for _, txi := range tx {
+	txLen := len(tx)
+	statusHook(fmt.Sprintf("recurrences... [%v/%v]", 0, txLen))
+	for i, txi := range tx {
 		if !txi.Active {
 			continue
+		}
+		if i%1000 == 0 {
+			// to avoid unnecessary slowdown, only update every 1000 iterations
+			statusHook(fmt.Sprintf("recurrences... [%v/%v]", i+1, txLen))
 		}
 
 		var allOccurrences []time.Time
@@ -359,6 +367,8 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 		results = append(results, result)
 	}
 
+	resultsLen := len(results)
+	statusHook(fmt.Sprintf("sorting dates... [%v]", resultsLen))
 	sort.SliceStable(
 		results,
 		func(i, j int) bool {
@@ -366,12 +376,17 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 		},
 	)
 
-	// now that it's sorted, we can roll-out the calculations
+	// now that it's sorted, we can roll out the calculations
 	currentBalance := startBalance
 	diff := 0
 	cumulativeIncome := 0
 	cumulativeExpenses := 0
+	statusHook(fmt.Sprintf("calculating... [%v/%v]", 0, resultsLen))
 	for i := range results {
+		if i%1000 == 0 {
+			// to avoid unnecessary slowdown, only update every 1000 iterations
+			statusHook(fmt.Sprintf("calculating... [%v/%v]", i+1, resultsLen))
+		}
 		resultsDateInt := results[i].Date.Unix()
 		// if for some reason not all transaction names and amounts match up,
 		// exit now
@@ -411,6 +426,7 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 		results[i].CumulativeExpenses = cumulativeExpenses
 		results[i].DiffFromStart = diff
 	}
+	statusHook(fmt.Sprintf("done [%v/%v]", resultsLen, resultsLen))
 
 	return results, nil
 }
@@ -420,7 +436,7 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 func GetNowDateString() string {
 	now := time.Now()
 	return fmt.Sprintf(
-		"%v-%v-%v",
+		"%04v-%02v-%02v",
 		now.Year(),
 		int(now.Month()),
 		now.Day(),
@@ -433,11 +449,28 @@ func GetNowDateString() string {
 func GetDefaultEndDateString() string {
 	now := time.Now()
 	return fmt.Sprintf(
-		"%v-%v-%v",
+		"%04v-%02v-%02v",
 		now.Year()+1,
 		int(now.Month()),
 		now.Day(),
 	)
+}
+
+// GetDateString formats a string as YYYY-MM-DD with zero-padding
+func GetDateString(y, m, d any) string {
+	return fmt.Sprintf("%04v-%02v-%02v", y, m, d)
+}
+
+// GetStartDateString returns a formatted date string for the transaction's
+// start date
+func (tx *TX) GetStartDateString() string {
+	return GetDateString(tx.StartsYear, tx.StartsMonth, tx.StartsDay)
+}
+
+// GetEndsDateString returns a formatted date string for the transaction's end
+// date
+func (tx *TX) GetEndsDateString() string {
+	return GetDateString(tx.EndsYear, tx.EndsMonth, tx.EndsDay)
 }
 
 // ParseYearMonthDateString takes an input value such as 2020-01-01 and returns
@@ -617,7 +650,7 @@ func GetTXByID(txs *[]TX, id string) (int, error) {
 // be the default '0-0-0' values, in which case it uses today for the start,
 // and a year from now for the end), and calculates all of the calculable
 // transactions for the provided range.
-func GenerateResultsFromDateStrings(txs *[]TX, bal int, startDt string, endDt string) ([]Result, error) {
+func GenerateResultsFromDateStrings(txs *[]TX, bal int, startDt string, endDt string, statusHook func(status string)) ([]Result, error) {
 	now := time.Now()
 	stYr, stMo, stDay := ParseYearMonthDateString(startDt)
 	endYr, endMo, endDay := ParseYearMonthDateString(endDt)
@@ -636,6 +669,7 @@ func GenerateResultsFromDateStrings(txs *[]TX, bal int, startDt string, endDt st
 		time.Date(stYr, time.Month(stMo), stDay, 0, 0, 0, 0, time.UTC),
 		time.Date(endYr, time.Month(endMo), endDay, 0, 0, 0, 0, time.UTC),
 		bal,
+		statusHook,
 	)
 	if err != nil {
 		return []Result{}, fmt.Errorf("failed to get results: %v", err.Error())
@@ -729,11 +763,11 @@ func LoadConfig(file string) (txs []TX, err error) {
 
 	// apply an automatic order to each of the transactions, starting from 1,
 	// since the 0-value is default when undefined
-	for i := range txs {
-		if txs[i].Order == 0 {
-			txs[i].Order = i + 1
-		}
-	}
+	// for i := range txs {
+	// 	if txs[i].Order == 0 {
+	// 		txs[i].Order = i + 1
+	// 	}
+	// }
 
 	return
 }
@@ -831,6 +865,9 @@ func GetCSVString(input []string) string {
 // argument (after stripping away Asc/Desc), the resulting sort will always be
 // the `next` column with Asc ordering.
 func GetNextSort(current, next string) string {
+	if next == c.None {
+		return c.None
+	}
 	if current == c.None {
 		return fmt.Sprintf("%v%v", next, c.Asc)
 	}
@@ -862,82 +899,82 @@ func GetNextSort(current, next string) string {
 // One possible approach might be to just simply iterate through the list,
 // starting from Order=1, and then alter any values that are not immediately
 // accessible by iterating to the next integer.
-func ValidateTransactions(tx *[]TX) error {
-	missingFirst := false
-	hasDuplicate := false
-	outOfSequence := false
-	sequenceFixes := make(map[int]int)
-	uniques := make(map[int]int)
-	msg := new(strings.Builder)
+// func ValidateTransactions(tx *[]TX) error {
+// 	missingFirst := false
+// 	hasDuplicate := false
+// 	outOfSequence := false
+// 	sequenceFixes := make(map[int]int)
+// 	uniques := make(map[int]int)
+// 	msg := new(strings.Builder)
 
-	// start by sorting the TX by Order
-	sort.SliceStable(*tx, func(i, j int) bool {
-		return (*tx)[j].Order > (*tx)[i].Order
-	})
+// 	// start by sorting the TX by Order
+// 	sort.SliceStable(*tx, func(i, j int) bool {
+// 		return (*tx)[j].Order > (*tx)[i].Order
+// 	})
 
-	// iterate through the list and assert that i is incremental
-	prev := -1
-	for i, t := range *tx {
-		// assert that the first TX has a value of Order=1
-		if i == 0 {
-			if t.Order != 1 {
-				missingFirst = true
-				msg.WriteString("First value did not have Order=1. ")
-				(*tx)[i].Order = 1
-			}
-		}
+// 	// iterate through the list and assert that i is incremental
+// 	prev := -1
+// 	for i, t := range *tx {
+// 		// assert that the first TX has a value of Order=1
+// 		if i == 0 {
+// 			if t.Order != 1 {
+// 				missingFirst = true
+// 				msg.WriteString("First value did not have Order=1. ")
+// 				(*tx)[i].Order = 1
+// 			}
+// 		}
 
-		// assert that each TX sequentially follows the next
-		if t.Order != prev+2 {
-			sequenceFixes[i] = prev + 2
-			outOfSequence = true
-			msg.WriteString(
-				fmt.Sprintf(
-					"Index %v had out of sequence order=%v instead of %v. ",
-					i,
-					t.Order,
-					sequenceFixes[i],
-				),
-			)
-			(*tx)[i].Order = sequenceFixes[i]
-		}
+// 		// assert that each TX sequentially follows the next
+// 		if t.Order != prev+2 {
+// 			sequenceFixes[i] = prev + 2
+// 			outOfSequence = true
+// 			msg.WriteString(
+// 				fmt.Sprintf(
+// 					"Index %v had out of sequence order=%v instead of %v. ",
+// 					i,
+// 					t.Order,
+// 					sequenceFixes[i],
+// 				),
+// 			)
+// 			(*tx)[i].Order = sequenceFixes[i]
+// 		}
 
-		// assert that there are no duplicate Order values
-		uniques[t.Order] += 1
-		if uniques[t.Order] > 1 {
-			newOrder := i + 1
-			hasDuplicate = true
-			msg.WriteString(
-				fmt.Sprintf(
-					"Order=%v duplicated %v times, setting to %v. ",
-					t.Order,
-					uniques[t.Order],
-					newOrder,
-				),
-			)
-			(*tx)[i].Order = newOrder
-		}
+// 		// assert that there are no duplicate Order values
+// 		uniques[t.Order] += 1
+// 		if uniques[t.Order] > 1 {
+// 			newOrder := i + 1
+// 			hasDuplicate = true
+// 			msg.WriteString(
+// 				fmt.Sprintf(
+// 					"Order=%v duplicated %v times, setting to %v. ",
+// 					t.Order,
+// 					uniques[t.Order],
+// 					newOrder,
+// 				),
+// 			)
+// 			(*tx)[i].Order = newOrder
+// 		}
 
-		prev += 1
-	}
+// 		prev += 1
+// 	}
 
-	if hasDuplicate || outOfSequence || missingFirst {
-		return fmt.Errorf("%v", msg.String())
-	}
+// 	if hasDuplicate || outOfSequence || missingFirst {
+// 		return fmt.Errorf("%v", msg.String())
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // GetLargestOrder returns the highest "Order" present in a list of
 // transactions.
-func GetLargestOrder(txs []TX) int {
-	m := 0
+// func GetLargestOrder(txs []TX) int {
+// 	m := 0
 
-	for i := range txs {
-		if txs[i].Order > m {
-			m = txs[i].Order
-		}
-	}
+// 	for i := range txs {
+// 		if txs[i].Order > m {
+// 			m = txs[i].Order
+// 		}
+// 	}
 
-	return m
-}
+// 	return m
+// }

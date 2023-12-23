@@ -61,8 +61,8 @@ const (
 )
 
 const (
-	COLUMN_ORDER     = iota // int
-	COLUMN_AMOUNT           // int in cents; 500 = $5.00
+	// COLUMN_ORDER     = iota // int
+	COLUMN_AMOUNT    = iota // int in cents; 500 = $5.00
 	COLUMN_ACTIVE           // bool true/false
 	COLUMN_NAME             // editable string
 	COLUMN_FREQUENCY        // dropdown, monthly/daily/weekly/yearly
@@ -402,8 +402,6 @@ A [#8899dd]transaction[-] is a recurring expense or income:
 
 Each transaction has the following fields:
 
-- [::b]Order[-]:     You can define a custom integer sorting order for transactions.
-             This field has no other purpose.
 - [::b]Amount[-]:    This is a positive or negative value as described above.
 - [::b]Active[-]:    This is a boolean value that determines whether the transaction should
              be included in calculations. This is useful for temporarily making
