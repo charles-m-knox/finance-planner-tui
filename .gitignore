@@ -1,4 +1,6 @@
 finance-planner-tui
+finance-planner-tui-compressed
+finance-planner-tui-prod
 conf.json
 config.yml
 *.yml
