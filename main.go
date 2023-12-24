@@ -8,6 +8,7 @@ import (
 	c "finance-planner-tui/constants"
 	"finance-planner-tui/lib"
 	m "finance-planner-tui/models"
+	"finance-planner-tui/themes"
 	"finance-planner-tui/translations"
 
 	"github.com/gdamore/tcell/v2"
@@ -17,6 +18,9 @@ import (
 
 //go:embed translations/*.yml
 var AllTranslations embed.FS
+
+//go:embed themes/*.yml
+var AllThemes embed.FS
 
 const (
 	// PageProfiles is not shown to the user ever, and is only used in the code.
@@ -152,6 +156,20 @@ type FinancePlanner struct {
 	// keyboard keys that they press. They will of course be prompted to proceed
 	// before being fully immersed into this restricted mode.
 	FlagKeyboardEchoMode bool
+
+	// Allows the colors of the application to be changed. Themes are included
+	// as an embedded file when compiling, and will be parsed at runtime.
+	//
+	// If this is set to a value ending in .yml or .yaml, this application will
+	// attempt to load the file at runtime. Conversely, if it does not end in
+	// both of those two suffixes, this application will load from the included
+	// themes/$FlagTheme.yml files. Values left undefined in the current theme
+	// will fallback to the default theme's values.
+	FlagTheme string
+
+	// All default & custom colors are stored in here at runtime. Themes can be
+	// loaded via FlagTheme.
+	Colors map[string]string
 }
 
 // FP contains all shared data in a global. Avoid using globals where possible,
@@ -264,6 +282,7 @@ func parseFlags(t map[string]string) {
 	flag.StringVar(&(FP.FlagConfigFile), t["FlagConfigFileFlag"], "", t["FlagConfigFileDesc"])
 	flag.BoolVar(&(FP.FlagShouldMigrate), t["FlagShouldMigrateFlag"], false, t["FlagShouldMigrateDesc"])
 	flag.BoolVar(&FP.FlagKeyboardEchoMode, t["FlagKeyboardEchoModeFlag"], false, t["FlagKeyboardEchoModeDesc"])
+	flag.StringVar(&FP.FlagTheme, t["FlagThemeDesc"], "", t["FlagThemeFlag"])
 	flag.Parse()
 }
 
@@ -284,6 +303,16 @@ func main() {
 	FP.Config, FP.FlagConfigFile, err = loadConfig(FP.FlagConfigFile, FP.T)
 	if err != nil {
 		log.Fatalf("%v: %v", FP.T["ErrorFailedToLoadConfig"], err.Error())
+	}
+
+	theme := FP.Config.Theme
+	if FP.FlagTheme != "" {
+		theme = FP.FlagTheme
+	}
+
+	FP.Colors, err = themes.Load(AllThemes, theme)
+	if err != nil {
+		log.Fatalf("%v: %v", FP.T["ErrorFailedToLoadThemes"], err.Error())
 	}
 
 	if len(FP.Config.Profiles) > 0 {

@@ -21,7 +21,12 @@ func pushUndoBufferChange() {
 
 	err := yaml.Unmarshal(FP.UndoBuffer[FP.UndoBufferPos], &FP.Config)
 	if err != nil {
-		FP.ProfileStatusText.SetText("[red]config unmarshal failure")
+		FP.ProfileStatusText.SetText(fmt.Sprintf(
+			"%v%v%v",
+			FP.Colors["ProfileStatusTextError"],
+			FP.T["UndoBufferPushValueConfigUnmarshalFailure"],
+			c.ResetStyle,
+		))
 	}
 
 	// set the FP.SelectedProfile to the latest FP.UndoBuffer's config
@@ -39,7 +44,14 @@ func undo() {
 
 	if newUndoBufferPos < 0 {
 		// nothing to undo - at beginning of FP.UndoBuffer
-		FP.ProfileStatusText.SetText(fmt.Sprintf("[gray] nothing to undo [%v/%v]", FP.UndoBufferPos+1, undoBufferLen))
+		FP.ProfileStatusText.SetText(fmt.Sprintf(
+			"%v%v [%v/%v]%v",
+			FP.Colors["ProfileStatusTextPassive"],
+			FP.T["UndoBufferNothingToUndo"],
+			FP.UndoBufferPos+1,
+			undoBufferLen,
+			c.ResetStyle,
+		))
 
 		return
 	}
@@ -48,7 +60,14 @@ func undo() {
 
 	pushUndoBufferChange()
 
-	FP.ProfileStatusText.SetText(fmt.Sprintf("[gray] undo: %v/%v", FP.UndoBufferPos+1, undoBufferLen))
+	FP.ProfileStatusText.SetText(fmt.Sprintf(
+		"%v%v: [%v/%v]%v",
+		FP.Colors["ProfileStatusTextPassive"],
+		FP.T["UndoBufferUndoAction"],
+		FP.UndoBufferPos+1,
+		undoBufferLen,
+		c.ResetStyle,
+	))
 
 	populateProfilesPage()
 	getTransactionsTable()
@@ -64,7 +83,14 @@ func redo() {
 
 	if newUndoBufferPos > undoBufferLastPos {
 		// nothing to redo - at end of FP.UndoBuffer
-		FP.ProfileStatusText.SetText(fmt.Sprintf("[gray] nothing to redo [%v/%v]", FP.UndoBufferPos+1, undoBufferLen))
+		FP.ProfileStatusText.SetText(fmt.Sprintf(
+			"%v%v [%v/%v]%v",
+			FP.Colors["ProfileStatusTextPassive"],
+			FP.T["UndoBufferNothingToRedo"],
+			FP.UndoBufferPos+1,
+			undoBufferLen,
+			c.ResetStyle,
+		))
 
 		return
 	}
@@ -73,7 +99,14 @@ func redo() {
 
 	pushUndoBufferChange()
 
-	FP.ProfileStatusText.SetText(fmt.Sprintf("[gray] redo: [%v/%v]", FP.UndoBufferPos+1, undoBufferLen))
+	FP.ProfileStatusText.SetText(fmt.Sprintf(
+		"%v%v: [%v/%v]%v",
+		FP.Colors["ProfileStatusTextPassive"],
+		FP.T["UndoBufferRedoAction"],
+		FP.UndoBufferPos+1,
+		undoBufferLen,
+		c.ResetStyle,
+	))
 
 	populateProfilesPage()
 	getTransactionsTable()
@@ -143,7 +176,8 @@ func modified() {
 		b, err := yaml.Marshal(FP.Config)
 		if err != nil {
 			FP.ProfileStatusText.SetText(fmt.Sprintf(
-				"[red] %v%v",
+				"%v%v%v",
+				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferCannotMarshalConfigError"],
 				c.ResetStyle,
 			))
@@ -157,7 +191,8 @@ func modified() {
 			bo, err = decompress(FP.UndoBuffer[FP.UndoBufferPos])
 			if err != nil {
 				FP.ProfileStatusText.SetText(fmt.Sprintf(
-					"[red] %v%v",
+					"%v%v%v",
+					FP.Colors["ProfileStatusTextError"],
 					FP.T["UndoBufferConfigDecompressionError"],
 					c.ResetStyle,
 				))
@@ -167,7 +202,8 @@ func modified() {
 		if string(bo) == string(b) {
 			// no difference between this config and previous one
 			FP.ProfileStatusText.SetText(fmt.Sprintf(
-				"[gray] %v [%v/%v]%v",
+				"%v%v [%v/%v]%v",
+				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferNoChange"],
 				FP.UndoBufferPos+1,
 				len(FP.UndoBuffer),
@@ -191,7 +227,8 @@ func modified() {
 	b, err := yaml.Marshal(FP.Config)
 	if err != nil {
 		FP.ProfileStatusText.SetText(fmt.Sprintf(
-			"[red] %v%v",
+			"%v%v%v",
+			FP.Colors["ProfileStatusTextError"],
 			FP.T["UndoBufferCannotMarshalConfigError"],
 			c.ResetStyle,
 		))
@@ -206,7 +243,8 @@ func modified() {
 		bgz, err = compress(b)
 		if err != nil {
 			FP.ProfileStatusText.SetText(fmt.Sprintf(
-				"[red] %v%v",
+				"%v%v%v",
+				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferConfigCompressionError"],
 				c.ResetStyle,
 			))
@@ -225,7 +263,10 @@ func modified() {
 
 	pushUndoBufferChange()
 	FP.ProfileStatusText.SetText(fmt.Sprintf(
-		"[white]*[gray][%v/%v][%v]%v",
+		"%v%v*%v[%v/%v %vkB]%v",
+		FP.Colors["ProfileStatusTextModifiedMarker"],
+		c.ResetStyle,
+		FP.Colors["ProfileStatusTextPassive"],
 		// FP.FlagConfigFile,
 		FP.UndoBufferPos+1,
 		len(FP.UndoBuffer),

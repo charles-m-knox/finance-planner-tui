@@ -24,7 +24,7 @@ type Config struct {
 	Profiles            []Profile           `yaml:"profiles"`
 	UndoBufferMaxLength int                 `yaml:"undoBufferMaxLength"`
 	Version             string              `yaml:"version"`
-	Colors              map[string]string
+	Theme               string              `yaml:"theme"`
 	// if true, results calculations will be faster for large date ranges,
 	// as the terminal will not need to periodically re-render the page to
 	// show status/progress messages for its work-in-progress calculations

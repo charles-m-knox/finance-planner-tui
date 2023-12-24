@@ -8,5 +8,6 @@ conf.json
 config.yml
 *.yml
 !translations/*.yml
+!themes/*.yml
 *.cast
 *.cast.xz

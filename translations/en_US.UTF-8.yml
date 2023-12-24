@@ -5,12 +5,15 @@ FlagShouldMigrateDesc: whether or not to migrate a file named conf.json in the c
 FlagShouldMigrateFlag: migrate
 FlagKeyboardEchoModeDesc: if true, all keyboard inputs except escape and ctrl+c will be echoed to the bottom left text field of the page. Use this mode to test your preferred keyboard mappings - take the exact text and put it into your keybindings configuration.
 FlagKeyboardEchoModeFlag: kb
+FlagThemeDesc: the name of the theme to use, found under themes/*.yml when compiled; if the file extension ends in yaml or yml, it will load the theme at runtime instead
+FlagThemeFlag: t
 DefaultNewProfileName: "New Profile Name"
 BottomPageNavTextHelp: "help"
 BottomPageNavTextProfiles: "profiles & transactions"
 BottomPageNavTextResults: "results"
 ErrorFailedToLoadConfig: failed to load config
 ErrorFailedToMarshalInitialConfig: failed to marshal config for loading into undo buffer
+ErrorFailedToLoadThemes: failed to load themes
 PromptExitButtonExit: I am sure, please exit
 PromptExitButtonNo: "No"
 PromptExitButtonCancel: Cancel
@@ -37,8 +40,13 @@ ResultsTableStatusCalculatingPleaseWait: "calculating results, please wait..."
 ResultsStatsErrorGettingStats: "error getting stats"
 ResultsGenerationFailed: "error getting results"
 
+UndoBufferUndoAction: undo
+UndoBufferNothingToUndo: nothing to undo
+UndoBufferRedoAction: redo
+UndoBufferNothingToRedo: nothing to redo
 UndoBufferCannotMarshalConfigError: cannot marshal config
 UndoBufferNoChange: no change
+UndoBufferPushValueConfigUnmarshalFailure: config unmarshal failure
 UndoBufferCompressionWriteError: failed to gz compress
 UndoBufferCompressionCloseError: failed to gz compress
 UndoBufferDecompressionReaderInitError: failed to open new gzip reader
