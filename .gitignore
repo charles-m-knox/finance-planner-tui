@@ -1,7 +1,12 @@
+build/
+finance-planner
 finance-planner-tui
 finance-planner-tui-compressed
 finance-planner-tui-prod
+finance-planner-tui-*
 conf.json
 config.yml
 *.yml
 !translations/*.yml
+*.cast
+*.cast.xz

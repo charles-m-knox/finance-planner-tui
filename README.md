@@ -2,7 +2,7 @@
 
 TODO:
 
-- refactor & remove as many globals as possible
+- create xdg config dir when loading configs
 - finish translations into english
 - allow disabling mouse support so that things can be copied (config propery, or even through a shortcut?)
 - `ctrl+F` and `/` for search
@@ -11,7 +11,7 @@ TODO:
 - remind users that the Tab key is used for navigating through the results form
 - update help file to show actual keybindings
 - customize colors (later!)
--
+- fix issue on mac with showing black on black in results page
 
 ## keybindings
 

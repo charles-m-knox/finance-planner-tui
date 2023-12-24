@@ -43,7 +43,8 @@ const (
 	OneYear          = "1year"
 	FiveYear         = "5year"
 
-	DefaultConfig = "config.yml"
+	DefaultConfig          = "config.yml"
+	DefaultConfigParentDir = "finance-planner-tui"
 
 	ConfigVersion = "1"
 )

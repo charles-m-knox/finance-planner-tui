@@ -1,18 +1,20 @@
 ---
 FlagConfigFileDesc: the file to load from and save to
 FlagConfigFileFlag: f
-
 FlagShouldMigrateDesc: whether or not to migrate a file named conf.json in the current directory from a previous config version to the latest version and save it as migrated.yml
 FlagShouldMigrateFlag: migrate
-
 FlagKeyboardEchoModeDesc: if true, all keyboard inputs except escape and ctrl+c will be echoed to the bottom left text field of the page. Use this mode to test your preferred keyboard mappings - take the exact text and put it into your keybindings configuration.
 FlagKeyboardEchoModeFlag: kb
-
 DefaultNewProfileName: "New Profile Name"
-
+BottomPageNavTextHelp: "help"
+BottomPageNavTextProfiles: "profiles & transactions"
+BottomPageNavTextResults: "results"
 ErrorFailedToLoadConfig: failed to load config
 ErrorFailedToMarshalInitialConfig: failed to marshal config for loading into undo buffer
-
+PromptExitButtonExit: I am sure, please exit
+PromptExitButtonNo: "No"
+PromptExitButtonCancel: Cancel
+PromptExitText: "Really quit?"
 PromptKeyboardEchoModeButtonTurnOff: "Turn off"
 PromptKeyboardEchoModeButtonExitNow: "Exit Now"
 PromptKeyboardEchoModeButtonContinue: "Continue"
@@ -23,6 +25,27 @@ PromptKeyboardEchoModeText: |
   These keyboard shortcuts are directly to be entered into your configuration for customization as shown, such as 'Rune[R[]'. If you wish to later remap the Escape key, use the string 'Esc', and for Ctrl+C, use the string 'Ctrl+C' in your configuration. Note that when in keyboard echoing mode, Ctrl+C and Escape are permanently mapped and cannot be changed.
 
   This was triggered by passing the -kb flag to this application on startup."
+
+ConfigFailedToLoadConfig: "failed to read config from"
+ConfigFailedToUnmarshalConfig: "failed to unmarshal config from"
+
+ProfilesPageTitle: Profiles
+ProfilesPageProfileOpenMarker: "(open)"
+ProfilesPageStatusTextNoChanges: no changes
+ProfilesPageInputFieldAppearsHere: editor appears here when editing
+ResultsTableStatusCalculatingPleaseWait: "calculating results, please wait..."
+ResultsStatsErrorGettingStats: "error getting stats"
+ResultsGenerationFailed: "error getting results"
+
+UndoBufferCannotMarshalConfigError: cannot marshal config
+UndoBufferNoChange: no change
+UndoBufferCompressionWriteError: failed to gz compress
+UndoBufferCompressionCloseError: failed to gz compress
+UndoBufferDecompressionReaderInitError: failed to open new gzip reader
+UndoBufferDecompressionWriteError: failed to gz decompress
+UndoBufferDecompressionCloseError: failed to gz decompress
+UndoBufferConfigCompressionError: failed to compress config before adding to undo buffer
+UndoBufferConfigDecompressionError: failed to decompress the previously stored config from undo buffer
 
 HelpTextTemplate: |
   [lightgreen::b]Finance Planner[-:-:-:-]

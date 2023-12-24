@@ -24,8 +24,14 @@ type Config struct {
 	Profiles            []Profile           `yaml:"profiles"`
 	UndoBufferMaxLength int                 `yaml:"undoBufferMaxLength"`
 	Version             string              `yaml:"version"`
+	Colors              map[string]string
 	// if true, results calculations will be faster for large date ranges,
 	// as the terminal will not need to periodically re-render the page to
 	// show status/progress messages for its work-in-progress calculations
 	DisableResultsStatusMessages bool `yaml:"disableResultsStatusMessages"`
+	// to save on memory, each time a change is made, a copy of the config is
+	// added to the undo buffer, which can add up over time. If you're on a
+	// system that struggles with gzip somehow, you can disable this feature
+	// here at the cost of using more memory.
+	DisableGzipCompressionInUndoBuffer bool `yaml:"disableGzipCompressionInUndoBuffer"`
 }
