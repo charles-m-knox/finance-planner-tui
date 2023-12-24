@@ -1,0 +1,192 @@
+# notes:
+# goerr113: https://stackoverflow.com/a/65215747 https://github.com/Djarvur/go-err113#usage
+
+# https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
+
+linters:
+  # # Disable all linters.
+  # # Default: false
+  # disable-all: true
+  # # Enable specific linter
+  # # https://golangci-lint.run/usage/linters/#enabled-by-default
+  # enable:
+  #   - asasalint
+  #   - asciicheck
+  #   - bidichk
+  #   - bodyclose
+  #   - containedctx
+  #   - contextcheck
+  #   - cyclop
+  #   - deadcode
+  #   - decorder
+  #   - depguard
+  #   - dogsled
+  #   - dupl
+  #   - dupword
+  #   - durationcheck
+  #   - errcheck
+  #   - errchkjson
+  #   - errname
+  #   - errorlint
+  #   - execinquery
+  #   - exhaustive
+  #   - exhaustivestruct
+  #   - exhaustruct
+  #   - exportloopref
+  #   - forbidigo
+  #   - forcetypeassert
+  #   - funlen
+  #   - gci
+  #   - ginkgolinter
+  #   - gocheckcompilerdirectives
+  #   - gochecknoglobals
+  #   - gochecknoinits
+  #   - gochecksumtype
+  #   - gocognit
+  #   - goconst
+  #   - gocritic
+  #   - gocyclo
+  #   - godot
+  #   - godox
+  #   - goerr113
+  #   - gofmt
+  #   - gofumpt
+  #   - goheader
+  #   - goimports
+  #   - golint
+  #   - gomnd
+  #   - gomoddirectives
+  #   - gomodguard
+  #   - goprintffuncname
+  #   - gosec
+  #   - gosimple
+  #   - gosmopolitan
+  #   - govet
+  #   - grouper
+  #   - ifshort
+  #   - importas
+  #   - inamedparam
+  #   - ineffassign
+  #   - interfacebloat
+  #   - interfacer
+  #   - ireturn
+  #   - lll
+  #   - loggercheck
+  #   - maintidx
+  #   - makezero
+  #   - maligned
+  #   - mirror
+  #   - misspell
+  #   - musttag
+  #   - nakedret
+  #   - nestif
+  #   - nilerr
+  #   - nilnil
+  #   - nlreturn
+  #   - noctx
+  #   - nolintlint
+  #   - nonamedreturns
+  #   - nosnakecase
+  #   - nosprintfhostport
+  #   - paralleltest
+  #   - perfsprint
+  #   - prealloc
+  #   - predeclared
+  #   - promlinter
+  #   - protogetter
+  #   - reassign
+  #   - revive
+  #   - rowserrcheck
+  #   - scopelint
+  #   - sloglint
+  #   - sqlclosecheck
+  #   - staticcheck
+  #   - structcheck
+  #   - stylecheck
+  #   - tagalign
+  #   - tagliatelle
+  #   - tenv
+  #   - testableexamples
+  #   - testifylint
+  #   - testpackage
+  #   - thelper
+  #   - tparallel
+  #   - typecheck
+  #   - unconvert
+  #   - unparam
+  #   - unused
+  #   - usestdlibvars
+  #   - varcheck
+  #   - varnamelen
+  #   - wastedassign
+  #   - whitespace
+  #   - wrapcheck
+  #   - wsl
+  #   - zerologlint
+
+  # Enable all available linters.
+  # Default: false
+  # enable-all: true
+  # Disable specific linter
+  # https://golangci-lint.run/usage/linters/#disabled-by-default
+  disable:
+    - varnamelen # doesn't like one-letter var names
+    - exhaustive # requires way too many switch...case statements
+    - gci # couldn't get it working
+    - exhaustivestruct
+    - exhaustruct
+    - gomnd # i like the concept but it comes up in too many places (magic numbers)
+    # - deadcode
+    # - golint
+    # - ifshort
+    # - interfacer
+    # - maligned
+    # - nosnakecase
+    # - scopelint
+    # - structcheck
+    # - varcheck
+
+  # # Enable presets.
+  # # https://golangci-lint.run/usage/linters
+  # # Default: []
+  presets:
+    - bugs
+    - comment
+    - complexity
+    - error
+    - format
+    - import
+    - metalinter
+    - module
+    - performance
+    - sql
+    - style
+    - test
+    - unused
+
+linters-settings:
+  depguard:
+    rules:
+      # https://github.com/OpenPeeDeeP/depguard
+      Main:
+        files:
+          - "$all"
+          - "!$test"
+        listMode: "strict"
+        # doesn't seem to work with the current go module name?
+        # allow:
+        #   - "$gostd"
+        #   - "constants"
+        #   - "github.com/google/uuid"
+        #   - "github.com/teambition/rrule-go"
+        #   - "finance-planner-tui/constants"
+        deny:
+          - pkg: io/ioutil
+            desc: "replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil"
+      Test:
+        files:
+          - "$test"
+        listMode: "lax"
+        deny:
+          - pkg: "github.com/stretchr/testify"
+            desc: "Please use standard library for tests"

@@ -2,6 +2,8 @@
 
 TODO:
 
+- refactor & remove as many globals as possible
+- finish translations into english
 - allow disabling mouse support so that things can be copied (config propery, or even through a shortcut?)
 - `ctrl+F` and `/` for search
 - Home and End keys should navigate to the top left & bottom right columns when already at the leftmost column/row
@@ -9,6 +11,7 @@ TODO:
 - remind users that the Tab key is used for navigating through the results form
 - update help file to show actual keybindings
 - customize colors (later!)
+-
 
 ## keybindings
 
@@ -41,3 +44,9 @@ unused:
 
 - right: unused (default behavior)
 - left: unused (default behavior)
+
+## lint & formatters
+
+```bash
+go install github.com/daixiang0/gci@latest
+```

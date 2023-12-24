@@ -25,3 +25,5 @@ build-win-amd64:
 	rm -f $(BIN)-prod-win-amd64-compressed
 	upx --best -o ./$(BIN)-prod-win-amd64-compressed $(BIN)-prod-win-amd64
 
+lint:
+	golangci-lint run ./...
