@@ -57,6 +57,8 @@ UndoBufferConfigDecompressionError: failed to decompress the previously stored c
 
 TransactionsInputFieldPlaceholderLabel: editor appears here when editing
 
+TransactionsTableTitle: "Transactions"
+
 TransactionsColumnAmount: "Amount"
 TransactionsColumnActive: "Active"
 TransactionsColumnName: "Name"
