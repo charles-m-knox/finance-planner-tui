@@ -24,12 +24,12 @@ compress-prod: mkbuilddir
 
 build-optimized: mkbuilddir build-prod compress-prod
 
-build-mac-arm64: mkbuilddir
-	CGO_ENABLED=0 GOARCH=arm64 GOOS=darwin go build -v -o $(BIN)-prod-darwin-arm64 -ldflags="-w -s -buildid=" -trimpath
-	rm -f $(BIN)-prod-darwin-arm64-compressed
+# rm -f $(BIN)-prod-darwin-arm64-compressed
 # note for mac m1 - this seems to taint the binary, it doesn't work;
 # you'll probably have to do without upx for now
 # upx --best -o ./$(BIN)-prod-darwin-arm64-compressed $(BIN)-prod-darwin-arm64
+build-mac-arm64: mkbuilddir
+	CGO_ENABLED=0 GOARCH=arm64 GOOS=darwin go build -v -o $(BIN)-prod-darwin-arm64 -ldflags="-w -s -buildid=" -trimpath
 
 build-mac-amd64: mkbuilddir
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=darwin go build -v -o $(BIN)-prod-darwin-amd64 -ldflags="-w -s -buildid=" -trimpath

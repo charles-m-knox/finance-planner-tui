@@ -14,6 +14,9 @@ import (
 	"github.com/rivo/tview"
 )
 
+// When changing a year field in the results form, this function is executed
+// and will reject changes that do not properly parse into the desired
+// format.
 func resultsFormInputFieldYearValidator(textToCheck string, _ rune) bool {
 	i, err := strconv.ParseInt(textToCheck, 10, 64)
 	if err != nil || i < 0 {
@@ -23,6 +26,9 @@ func resultsFormInputFieldYearValidator(textToCheck string, _ rune) bool {
 	return true
 }
 
+// When changing a month field in the results form, this function is executed
+// and will reject changes that do not properly parse into the desired
+// format.
 func resultsFormInputFieldMonthValidator(textToCheck string, _ rune) bool {
 	i, err := strconv.ParseInt(textToCheck, 10, 64)
 	if err != nil || i < 0 || i > 12 {
@@ -32,6 +38,9 @@ func resultsFormInputFieldMonthValidator(textToCheck string, _ rune) bool {
 	return true
 }
 
+// When changing a day field in the results form, this function is executed
+// and will reject changes that do not properly parse into the desired
+// format.
 func resultsFormInputFieldDayValidator(textToCheck string, _ rune) bool {
 	i, err := strconv.ParseInt(textToCheck, 10, 64)
 	if err != nil || i < 0 || i > 31 {
@@ -123,7 +132,7 @@ func getResultsPage() *tview.Flex {
 
 	FP.ResultsTable.SetTitle(FP.T["ResultsTableTitle"])
 	FP.ResultsTable.SetBorders(false).
-		SetSelectable(true, false). // set row & cells to be selectable
+		SetSelectable(true, false).
 		SetSeparator(' ')
 
 	FP.ResultsDescription = tview.NewTextView().SetDynamicColors(true)
@@ -234,7 +243,11 @@ func setResultsTableHeaders() {
 	th := getResultsTableHeaders()
 
 	for i := range th {
-		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v", th[i].Color, th[i].Text, c.Reset))
+		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v",
+			th[i].Color,
+			th[i].Text,
+			c.Reset,
+		))
 		if th[i].Expand > 0 {
 			cell.SetExpansion(th[i].Expand)
 		}
@@ -249,13 +262,121 @@ func setResultsTableCellsForResult(i int, r lib.Result) {
 	td := getResultsTableCell(r)
 
 	for j := range td {
-		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v", td[j].Color, td[j].Text, c.Reset))
+		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v",
+			td[j].Color,
+			td[j].Text,
+			c.Reset,
+		))
 		if td[j].Expand > 0 {
 			cell.SetExpansion(td[j].Expand)
 		}
 
 		FP.ResultsTable.SetCell(i, j, cell)
 	}
+}
+
+// Takes the current profile's transactions + the results form's values (which
+// have been assumed to already have been pushed to the current profile) and
+// generates results. It passes a goroutine statusHook to the library's result
+// generation function so that it can periodically update the status of
+// prolonged calculations for the user to see.
+//
+// You should consider checking the length of the return value and continuing
+// afterwards only if its length is greater than zero.
+func generateResults() []lib.Result {
+	bal := int(lib.ParseDollarAmount(FP.SelectedProfile.StartingBalance, true))
+
+	st := lib.GetDateString(
+		FP.SelectedProfile.StartYear,
+		FP.SelectedProfile.StartMonth,
+		FP.SelectedProfile.StartDay,
+	)
+	end := lib.GetDateString(
+		FP.SelectedProfile.EndYear,
+		FP.SelectedProfile.EndMonth,
+		FP.SelectedProfile.EndDay,
+	)
+
+	var results []lib.Result
+
+	statusHook := func(status string) {
+		if FP.Config.DisableResultsStatusMessages || FP.ResultsDescription == nil {
+			return
+		}
+
+		go FP.App.QueueUpdateDraw(func() {
+			FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
+				FP.Colors["ResultsDescriptionPassive"],
+				status,
+				c.Reset,
+			))
+		})
+	}
+
+	var err error
+
+	results, err = lib.GenerateResultsFromDateStrings(
+		&(FP.SelectedProfile.TX),
+		bal,
+		st,
+		end,
+		statusHook,
+	)
+	if err != nil {
+		FP.ResultsDescription.SetText(fmt.Sprintf("%v%v: %v%v",
+			FP.Colors["ResultsDescriptionError"],
+			FP.T["ResultsGenerationFailed"],
+			err.Error(),
+			c.Reset,
+		))
+
+		return results
+	}
+
+	return results
+}
+
+// This is basically a callback function that is executed when the results
+// table's selection is changed. The second argument is the "column" that is
+// selected, but is unused currently.
+//
+// Currently, this function simply updates the results description text view
+// to contain a newline-separated list of all transactions that occurred on
+// the date that is currently highlighted in the results table.
+func resultsTableSelectionChanged(row, _ int) {
+	if row <= 0 {
+		return
+	}
+
+	FP.ResultsDescription.Clear()
+
+	// ensure there are enough results before trying to show something
+	if len(*(FP.LatestResults))-1 > row-1 {
+		var sb strings.Builder
+		for _, t := range (*(FP.LatestResults))[row-1].DayTransactionNamesSlice {
+			sb.WriteString(fmt.Sprintf("%v\n", t))
+		}
+
+		FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
+			FP.Colors["ResultsDescriptionPassive"],
+			sb.String(),
+			c.Reset,
+		))
+	}
+}
+
+// This may help with garbage collection when working with bigger data.
+func garbageCollectPreviousLatestResults() {
+	if FP.LatestResults == nil {
+		return
+	}
+
+	if *(FP.LatestResults) != nil {
+		clear(*(FP.LatestResults))
+		(*(FP.LatestResults)) = nil
+	}
+
+	FP.LatestResults = nil
 }
 
 // Executes a goroutine to asynchronously update the results table. Will do
@@ -279,84 +400,19 @@ func getResultsTable() {
 
 		setSelectedProfileDefaults()
 
-		bal := int(lib.ParseDollarAmount(FP.SelectedProfile.StartingBalance, true))
+		results := generateResults()
 
-		st := lib.GetDateString(
-			FP.SelectedProfile.StartYear,
-			FP.SelectedProfile.StartMonth,
-			FP.SelectedProfile.StartDay,
-		)
-		end := lib.GetDateString(
-			FP.SelectedProfile.EndYear,
-			FP.SelectedProfile.EndMonth,
-			FP.SelectedProfile.EndDay,
-		)
-
-		statusHook := func(status string) {
-			if FP.Config.DisableResultsStatusMessages || FP.ResultsDescription == nil {
-				return
-			}
-
-			go FP.App.QueueUpdateDraw(func() {
-				FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
-					FP.Colors["ResultsDescriptionPassive"],
-					status,
-					c.Reset,
-				))
-			})
-		}
-
-		// get results
-		results, err := lib.GenerateResultsFromDateStrings(&(FP.SelectedProfile.TX), bal, st, end, statusHook)
-		if err != nil {
-			FP.ResultsDescription.SetText(fmt.Sprintf("%v%v: %v%v",
-				FP.Colors["ResultsDescriptionError"],
-				FP.T["ResultsGenerationFailed"],
-				err.Error(),
-				c.Reset,
-			))
-
-			return
-		}
-
-		// this may help with garbage collection when working with bigger data
-		if FP.LatestResults != nil {
-			if *(FP.LatestResults) != nil {
-				clear(*(FP.LatestResults))
-				(*(FP.LatestResults)) = nil
-			}
-
-			FP.LatestResults = nil
-		}
+		garbageCollectPreviousLatestResults()
 
 		FP.LatestResults = &results
 
-		// set up headers
 		setResultsTableHeaders()
 
-		// now add the remaining rows
 		for i := range results {
 			setResultsTableCellsForResult(i+1, results[i])
 		}
 
-		FP.ResultsTable.SetSelectionChangedFunc(func(row, column int) {
-			if row <= 0 {
-				return
-			}
-			FP.ResultsDescription.Clear()
-			// ensure there are enough results before trying to show something
-			if len(*(FP.LatestResults))-1 > row-1 {
-				var sb strings.Builder
-				for _, t := range (*(FP.LatestResults))[row-1].DayTransactionNamesSlice {
-					sb.WriteString(fmt.Sprintf("%v\n", t))
-				}
-				FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
-					FP.Colors["ResultsDescriptionPassive"],
-					sb.String(),
-					c.Reset,
-				))
-			}
-		})
+		FP.ResultsTable.SetSelectionChangedFunc(resultsTableSelectionChanged)
 
 		getResultsStats()
 
