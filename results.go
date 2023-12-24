@@ -8,12 +8,60 @@ import (
 
 	c "finance-planner-tui/constants"
 	"finance-planner-tui/lib"
+	"finance-planner-tui/models"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-// completely rebuilds the results form, safe to run repeatedly
+func resultsFormInputFieldYearValidator(textToCheck string, _ rune) bool {
+	i, err := strconv.ParseInt(textToCheck, 10, 64)
+	if err != nil || i < 0 {
+		return false
+	}
+
+	return true
+}
+
+func resultsFormInputFieldMonthValidator(textToCheck string, _ rune) bool {
+	i, err := strconv.ParseInt(textToCheck, 10, 64)
+	if err != nil || i < 0 || i > 12 {
+		return false
+	}
+
+	return true
+}
+
+func resultsFormInputFieldDayValidator(textToCheck string, _ rune) bool {
+	i, err := strconv.ParseInt(textToCheck, 10, 64)
+	if err != nil || i < 0 || i > 31 {
+		return false
+	}
+
+	return true
+}
+
+func resultsFormInputFieldStartYearChanged(text string) {
+	FP.SelectedProfile.StartYear = text
+}
+
+func getResultsFormLabel(m string) string {
+	return fmt.Sprintf("%v:", m)
+}
+
+func resultsFormSubmit1Yr() {
+	setResultsFormPreset(c.StartTodayPreset, c.OneYear)
+	updateResultsForm()
+	getResultsTable()
+}
+
+func resultsFormSubmit5Yr() {
+	setResultsFormPreset(c.StartTodayPreset, c.FiveYear)
+	updateResultsForm()
+	getResultsTable()
+}
+
+// Completely rebuilds the results form, safe to run repeatedly.
 func updateResultsForm() {
 	FP.ResultsForm.Clear(true)
 	FP.ResultsForm.SetTitle("Parameters")
@@ -25,67 +73,40 @@ func updateResultsForm() {
 	setSelectedProfileDefaults()
 
 	FP.ResultsForm.
-		AddInputField("Start Year:", FP.SelectedProfile.StartYear, 0, func(textToCheck string, lastChar rune) bool {
-			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 0 {
-				return false
-			}
-			return true
-		}, func(text string) { FP.SelectedProfile.StartYear = text }).
-		AddInputField("Start Month:", FP.SelectedProfile.StartMonth, 0, func(textToCheck string, lastChar rune) bool {
-			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 0 || i > 12 {
-				return false
-			}
-			return true
-		}, func(text string) { FP.SelectedProfile.StartMonth = text }).
-		AddInputField("Start Day:", FP.SelectedProfile.StartDay, 0, func(textToCheck string, lastChar rune) bool {
-			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 0 || i > 31 {
-				return false
-			}
-			return true
-		}, func(text string) { FP.SelectedProfile.StartDay = text }).
-		AddInputField("End Year:", FP.SelectedProfile.EndYear, 0, func(textToCheck string, lastChar rune) bool {
-			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 0 {
-				return false
-			}
-			return true
-		}, func(text string) { FP.SelectedProfile.EndYear = text }).
-		AddInputField("End Month:", FP.SelectedProfile.EndMonth, 0, func(textToCheck string, lastChar rune) bool {
-			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 0 || i > 12 {
-				return false
-			}
-			return true
-		}, func(text string) { FP.SelectedProfile.EndMonth = text }).
-		AddInputField("End Day:", FP.SelectedProfile.EndDay, 0, func(textToCheck string, lastChar rune) bool {
-			i, err := strconv.ParseInt(textToCheck, 10, 64)
-			if err != nil || i < 0 || i > 31 {
-				return false
-			}
-			return true
-		}, func(text string) { FP.SelectedProfile.EndDay = text }).
-		AddInputField("Starting Balance:", FP.SelectedProfile.StartingBalance, 0, nil, func(text string) {
-			FP.SelectedProfile.StartingBalance = lib.FormatAsCurrency(int(lib.ParseDollarAmount(text, true)))
-		}).
-		AddButton("Submit", func() {
-			getResultsTable()
-		}).
-		AddButton("1 year", func() {
-			setResultsFormPreset(c.StartTodayPreset, c.OneYear)
-			updateResultsForm()
-			getResultsTable()
-		}).
-		AddButton("5 years", func() {
-			setResultsFormPreset(c.StartTodayPreset, c.FiveYear)
-			updateResultsForm()
-			getResultsTable()
-		}).
-		AddButton("Stats", func() {
-			getResultsStats()
-		})
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormStartYearLabel"]),
+			FP.SelectedProfile.StartYear,
+			0, resultsFormInputFieldYearValidator,
+			resultsFormInputFieldStartYearChanged).
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormStartMonthLabel"]),
+			FP.SelectedProfile.StartMonth,
+			0, resultsFormInputFieldMonthValidator,
+			func(text string) { FP.SelectedProfile.StartMonth = text }).
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormStartDayLabel"]),
+			FP.SelectedProfile.StartDay,
+			0, resultsFormInputFieldDayValidator,
+			func(text string) { FP.SelectedProfile.StartDay = text }).
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormEndYearLabel"]),
+			FP.SelectedProfile.EndYear,
+			0, resultsFormInputFieldYearValidator,
+			func(text string) { FP.SelectedProfile.EndYear = text }).
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormEndMonthLabel"]),
+			FP.SelectedProfile.EndMonth,
+			0, resultsFormInputFieldMonthValidator,
+			func(text string) { FP.SelectedProfile.EndMonth = text }).
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormEndDayLabel"]),
+			FP.SelectedProfile.EndDay,
+			0, resultsFormInputFieldDayValidator,
+			func(text string) { FP.SelectedProfile.EndDay = text }).
+		AddInputField(getResultsFormLabel(FP.T["ResultsFormStartingBalanceLabel"]),
+			FP.SelectedProfile.StartingBalance,
+			0, nil,
+			func(text string) {
+				FP.SelectedProfile.StartingBalance = lib.FormatAsCurrency(int(lib.ParseDollarAmount(text, true)))
+			}).
+		AddButton(FP.T["ResultsFormSubmitButtonLabel"], getResultsTable).
+		AddButton(FP.T["ResultsForm1yearButtonLabel"], resultsFormSubmit1Yr).
+		AddButton(FP.T["ResultsForm5yearsButtonLabel"], resultsFormSubmit5Yr).
+		AddButton(FP.T["ResultsFormStatsButtonLabel"], getResultsStats)
 
 	FP.ResultsForm.SetLabelColor(tcell.ColorViolet)
 	FP.ResultsForm.SetFieldBackgroundColor(tcell.NewRGBColor(40, 40, 40))
@@ -100,7 +121,7 @@ func getResultsPage() *tview.Flex {
 	FP.ResultsTable.SetBorder(true)
 	updateResultsForm()
 
-	FP.ResultsTable.SetTitle("Results")
+	FP.ResultsTable.SetTitle(FP.T["ResultsTableTitle"])
 	FP.ResultsTable.SetBorders(false).
 		SetSelectable(true, false). // set row & cells to be selectable
 		SetSeparator(' ')
@@ -120,7 +141,7 @@ func getResultsPage() *tview.Flex {
 // Allows a simple button press to set the start & end dates to various common
 // use cases. For example, start from today and end 1 year or 5 years from now.
 //
-// TODO: implement other start date logic - currently only supports today
+// TODO: implement other start date logic - currently only supports today.
 func setResultsFormPreset(startDate string, endDate string) {
 	var start, end time.Time
 
@@ -148,7 +169,7 @@ func setResultsFormPreset(startDate string, endDate string) {
 }
 
 // Populates the results description with basic statistics about the results,
-// and queues an UpdateDraw
+// and queues an UpdateDraw.
 func getResultsStats() {
 	go FP.App.QueueUpdateDraw(func() {
 		if FP.LatestResults == nil {
@@ -157,23 +178,88 @@ func getResultsStats() {
 
 		stats, err := lib.GetStats(*(FP.LatestResults))
 		if err != nil {
-			resultsStatus(fmt.Sprintf(
-				"%v: %v",
+			FP.ResultsDescription.SetText(fmt.Sprintf(
+				"%v%v: %v%v",
+				FP.Colors["ResultsDescriptionError"],
 				FP.T["ResultsStatsErrorGettingStats"],
 				err.Error(),
+				c.Reset,
 			))
 		}
 
-		resultsStatus(stats)
+		FP.ResultsDescription.SetText(fmt.Sprintf(
+			"%v%v%v",
+			FP.Colors["ResultsDescriptionStats"],
+			stats,
+			c.Reset,
+		))
 	})
 }
 
-// resultsStatus is a reusable function that produces text in the
-// results textview on the bottom portion of the page.
-func resultsStatus(m string) {
-	FP.ResultsDescription.SetText(fmt.Sprintf("[-]%v[-]", m))
+// Returns a list, representing the ordered columns to be shown in
+// the results table, alongside their configured colors.
+func getResultsTableHeaders() []models.TableCell {
+	return []models.TableCell{
+		{Text: FP.T["ResultsColumnDate"], Color: FP.Colors["ResultsColumnDate"]},
+		{Text: FP.T["ResultsColumnBalance"], Color: FP.Colors["ResultsColumnBalance"]},
+		{Text: FP.T["ResultsColumnCumulativeIncome"], Color: FP.Colors["ResultsColumnCumulativeIncome"]},
+		{Text: FP.T["ResultsColumnCumulativeExpenses"], Color: FP.Colors["ResultsColumnCumulativeExpenses"]},
+		{Text: FP.T["ResultsColumnDayExpenses"], Color: FP.Colors["ResultsColumnDayExpenses"]},
+		{Text: FP.T["ResultsColumnDayIncome"], Color: FP.Colors["ResultsColumnDayIncome"]},
+		{Text: FP.T["ResultsColumnDayNet"], Color: FP.Colors["ResultsColumnDayNet"]},
+		{Text: FP.T["ResultsColumnDiffFromStart"], Color: FP.Colors["ResultsColumnDiffFromStart"]},
+		{Text: FP.T["ResultsColumnDayTransactionNames"], Color: FP.Colors["ResultsColumnDayTransactionNames"], Expand: 1},
+	}
 }
 
+// Returns a list, representing the ordered columns to be shown in
+// the results table, alongside their configured colors.
+func getResultsTableCell(r lib.Result) []models.TableCell {
+	return []models.TableCell{
+		{Text: lib.FormatAsDate(r.Date), Color: FP.Colors["ResultsColumnDate"]},
+		{Text: lib.FormatAsCurrency(r.Balance), Color: FP.Colors["ResultsColumnBalance"]},
+		{Text: lib.FormatAsCurrency(r.CumulativeIncome), Color: FP.Colors["ResultsColumnCumulativeIncome"]},
+		{Text: lib.FormatAsCurrency(r.CumulativeExpenses), Color: FP.Colors["ResultsColumnCumulativeExpenses"]},
+		{Text: lib.FormatAsCurrency(r.DayExpenses), Color: FP.Colors["ResultsColumnDayExpenses"]},
+		{Text: lib.FormatAsCurrency(r.DayIncome), Color: FP.Colors["ResultsColumnDayIncome"]},
+		{Text: lib.FormatAsCurrency(r.DayNet), Color: FP.Colors["ResultsColumnDayNet"]},
+		{Text: lib.FormatAsCurrency(r.DiffFromStart), Color: FP.Colors["ResultsColumnDiffFromStart"]},
+		{Text: r.DayTransactionNames, Color: FP.Colors["ResultsColumnDayTransactionNames"], Expand: 1},
+	}
+}
+
+// Constructs and sets the columns for the first row in the results table.
+// Unsafe to run repeatedly and does not clear any existing fields/data.
+func setResultsTableHeaders() {
+	th := getResultsTableHeaders()
+
+	for i := range th {
+		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v", th[i].Color, th[i].Text, c.Reset))
+		if th[i].Expand > 0 {
+			cell.SetExpansion(th[i].Expand)
+		}
+
+		FP.ResultsTable.SetCell(0, i, cell)
+	}
+}
+
+// Constructs and sets the columns for the i'th row in the results table.
+// Unsafe to run repeatedly and does not clear any existing fields/data.
+func setResultsTableCellsForResult(i int, r lib.Result) {
+	td := getResultsTableCell(r)
+
+	for j := range td {
+		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v", td[j].Color, td[j].Text, c.Reset))
+		if td[j].Expand > 0 {
+			cell.SetExpansion(td[j].Expand)
+		}
+
+		FP.ResultsTable.SetCell(i, j, cell)
+	}
+}
+
+// Executes a goroutine to asynchronously update the results table. Will do
+// nothing if a goroutine has already been started.
 func getResultsTable() {
 	if FP.CalculatingResults {
 		return
@@ -185,28 +271,51 @@ func getResultsTable() {
 		FP.ResultsTable.Clear()
 		FP.ResultsDescription.Clear()
 
-		resultsStatus(FP.T["ResultsTableStatusCalculatingPleaseWait"])
+		FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
+			FP.Colors["ResultsDescriptionPassive"],
+			FP.T["ResultsTableStatusCalculatingPleaseWait"],
+			c.Reset,
+		))
 
 		setSelectedProfileDefaults()
 
-		// get results
-		results, err := lib.GenerateResultsFromDateStrings(
-			&(FP.SelectedProfile.TX),
-			int(lib.ParseDollarAmount(FP.SelectedProfile.StartingBalance, true)),
-			lib.GetDateString(FP.SelectedProfile.StartYear, FP.SelectedProfile.StartMonth, FP.SelectedProfile.StartDay),
-			lib.GetDateString(FP.SelectedProfile.EndYear, FP.SelectedProfile.EndMonth, FP.SelectedProfile.EndDay),
-			func(status string) {
-				if FP.Config.DisableResultsStatusMessages || FP.ResultsDescription == nil {
-					return
-				}
+		bal := int(lib.ParseDollarAmount(FP.SelectedProfile.StartingBalance, true))
 
-				go FP.App.QueueUpdateDraw(func() {
-					resultsStatus(status)
-				})
-			},
+		st := lib.GetDateString(
+			FP.SelectedProfile.StartYear,
+			FP.SelectedProfile.StartMonth,
+			FP.SelectedProfile.StartDay,
 		)
+		end := lib.GetDateString(
+			FP.SelectedProfile.EndYear,
+			FP.SelectedProfile.EndMonth,
+			FP.SelectedProfile.EndDay,
+		)
+
+		statusHook := func(status string) {
+			if FP.Config.DisableResultsStatusMessages || FP.ResultsDescription == nil {
+				return
+			}
+
+			go FP.App.QueueUpdateDraw(func() {
+				FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
+					FP.Colors["ResultsDescriptionPassive"],
+					status,
+					c.Reset,
+				))
+			})
+		}
+
+		// get results
+		results, err := lib.GenerateResultsFromDateStrings(&(FP.SelectedProfile.TX), bal, st, end, statusHook)
 		if err != nil {
-			resultsStatus(fmt.Sprintf("%v: %v", FP.T["ResultsGenerationFailed"], err.Error()))
+			FP.ResultsDescription.SetText(fmt.Sprintf("%v%v: %v%v",
+				FP.Colors["ResultsDescriptionError"],
+				FP.T["ResultsGenerationFailed"],
+				err.Error(),
+				c.Reset,
+			))
+
 			return
 		}
 
@@ -223,50 +332,11 @@ func getResultsTable() {
 		FP.LatestResults = &results
 
 		// set up headers
-		hDate := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDate, c.ColumnDate, c.ResetStyle))
-		hBalance := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsBalance, c.ColumnBalance, c.ResetStyle))
-		hCumulativeIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsCumulativeIncome, c.ColumnCumulativeIncome, c.ResetStyle))
-		hCumulativeExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsCumulativeExpenses, c.ColumnCumulativeExpenses, c.ResetStyle))
-		hDayExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayExpenses, c.ColumnDayExpenses, c.ResetStyle))
-		hDayIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayIncome, c.ColumnDayIncome, c.ResetStyle))
-		hDayNet := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayNet, c.ColumnDayNet, c.ResetStyle))
-		hDiffFromStart := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDiffFromStart, c.ColumnDiffFromStart, c.ResetStyle))
-		hDayTransactionNames := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayTransactionNames, c.ColumnDayTransactionNames, c.ResetStyle))
-
-		FP.ResultsTable.SetCell(0, 0, hDate)
-		FP.ResultsTable.SetCell(0, 1, hBalance)
-		FP.ResultsTable.SetCell(0, 2, hCumulativeIncome)
-		FP.ResultsTable.SetCell(0, 3, hCumulativeExpenses)
-		FP.ResultsTable.SetCell(0, 4, hDayExpenses)
-		FP.ResultsTable.SetCell(0, 5, hDayIncome)
-		FP.ResultsTable.SetCell(0, 6, hDayNet)
-		FP.ResultsTable.SetCell(0, 7, hDiffFromStart)
-		FP.ResultsTable.SetCell(0, 7, hDiffFromStart)
-		FP.ResultsTable.SetCell(0, 8, hDayTransactionNames)
+		setResultsTableHeaders()
 
 		// now add the remaining rows
 		for i := range results {
-			rDate := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDate, lib.FormatAsDate(results[i].Date), c.ResetStyle))
-			rBalance := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsBalance, lib.FormatAsCurrency(results[i].Balance), c.ResetStyle))
-			rCumulativeIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsCumulativeIncome, lib.FormatAsCurrency(results[i].CumulativeIncome), c.ResetStyle))
-			rCumulativeExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsCumulativeExpenses, lib.FormatAsCurrency(results[i].CumulativeExpenses), c.ResetStyle))
-			rDayExpenses := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayExpenses, lib.FormatAsCurrency(results[i].DayExpenses), c.ResetStyle))
-			rDayIncome := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayIncome, lib.FormatAsCurrency(results[i].DayIncome), c.ResetStyle))
-			rDayNet := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayNet, lib.FormatAsCurrency(results[i].DayNet), c.ResetStyle))
-			rDiffFromStart := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDiffFromStart, lib.FormatAsCurrency(results[i].DiffFromStart), c.ResetStyle))
-			rDayTransactionNames := tview.NewTableCell(fmt.Sprintf("%v%v%v", c.ColorColumnResultsDayTransactionNames, results[i].DayTransactionNames, c.ResetStyle))
-
-			rDayTransactionNames.SetExpansion(1)
-
-			FP.ResultsTable.SetCell(i+1, 0, rDate)
-			FP.ResultsTable.SetCell(i+1, 1, rBalance)
-			FP.ResultsTable.SetCell(i+1, 2, rCumulativeIncome)
-			FP.ResultsTable.SetCell(i+1, 3, rCumulativeExpenses)
-			FP.ResultsTable.SetCell(i+1, 4, rDayExpenses)
-			FP.ResultsTable.SetCell(i+1, 5, rDayIncome)
-			FP.ResultsTable.SetCell(i+1, 6, rDayNet)
-			FP.ResultsTable.SetCell(i+1, 7, rDiffFromStart)
-			FP.ResultsTable.SetCell(i+1, 8, rDayTransactionNames)
+			setResultsTableCellsForResult(i+1, results[i])
 		}
 
 		FP.ResultsTable.SetSelectionChangedFunc(func(row, column int) {
@@ -280,7 +350,11 @@ func getResultsTable() {
 				for _, t := range (*(FP.LatestResults))[row-1].DayTransactionNamesSlice {
 					sb.WriteString(fmt.Sprintf("%v\n", t))
 				}
-				resultsStatus(sb.String())
+				FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
+					FP.Colors["ResultsDescriptionPassive"],
+					sb.String(),
+					c.Reset,
+				))
 			}
 		})
 

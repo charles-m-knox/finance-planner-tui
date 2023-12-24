@@ -35,3 +35,9 @@ type Config struct {
 	// here at the cost of using more memory.
 	DisableGzipCompressionInUndoBuffer bool `yaml:"disableGzipCompressionInUndoBuffer"`
 }
+
+type TableCell struct {
+	Color  string
+	Text   string
+	Expand int
+}

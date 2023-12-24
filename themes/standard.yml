@@ -1,14 +1,10 @@
 ---
-ResultsColumnDate: "[#8899dd]"
-ResultsColumnBalance: "[white::b]"
-ResultsColumnCumulativeIncome: "[lightgreen]"
-ResultsColumnCumulativeExpenses: "[gold]"
-ResultsColumnDayExpenses: "[orange]"
-ResultsColumnDayIncome: "[lightgreen]"
-ResultsColumnDayNet: "[#cccccc]"
-ResultsColumnDiffFromStart: "[lightgoldenrodyellow]"
-ResultsColumnDayTransactionNames: "[smoke]"
+# profiles page bottom left status bar
+ProfileStatusTextError: "[red]"
+ProfileStatusTextPassive: "[gray]"
+ProfileStatusTextModifiedMarker: "[white]"
 
+# transactions table columns
 TransactionsColumnOrder: "[gray]"
 TransactionsColumnAmount: "[gold]"
 TransactionsColumnActive: "[white]"
@@ -32,6 +28,17 @@ TransactionsColumnUpdatedAT: "[blue]"
 TransactionsInactive: "[gray::i]"
 TransactionsAmountPositive: "[lightgreen]"
 
-ProfileStatusTextError: "[red]"
-ProfileStatusTextPassive: "[gray]"
-ProfileStatusTextModifiedMarker: "[white]"
+# results page
+ResultsColumnDate: "[#8899dd]"
+ResultsColumnBalance: "[white::b]"
+ResultsColumnCumulativeIncome: "[lightgreen]"
+ResultsColumnCumulativeExpenses: "[gold]"
+ResultsColumnDayExpenses: "[orange]"
+ResultsColumnDayIncome: "[lightgreen]"
+ResultsColumnDayNet: "[#cccccc]"
+ResultsColumnDiffFromStart: "[lightgoldenrodyellow]"
+ResultsColumnDayTransactionNames: "[smoke]"
+
+ResultsDescriptionStats: "[white]"
+ResultsDescriptionError: "[orange]"
+ResultsDescriptionPassive: "[smoke]"

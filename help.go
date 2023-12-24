@@ -175,7 +175,7 @@ func setBottomPageNavText() {
 			color = "[gold]"
 		}
 
-		sb.WriteString(fmt.Sprintf("%v%v%v %v %v", v[2], c.ResetStyle, color, v[1], c.ResetStyle))
+		sb.WriteString(fmt.Sprintf("%v%v%v %v %v", v[2], c.Reset, color, v[1], c.Reset))
 	}
 
 	FP.BottomPageNavText.SetText(sb.String())

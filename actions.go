@@ -278,7 +278,7 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 					"[gold::b]confirm deletion of profile %v by typing 'delete %v':%v",
 					FP.SelectedProfile.Name,
 					FP.SelectedProfile.Name,
-					c.ResetStyle,
+					c.Reset,
 				)
 			}
 

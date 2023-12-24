@@ -25,7 +25,7 @@ func pushUndoBufferChange() {
 			"%v%v%v",
 			FP.Colors["ProfileStatusTextError"],
 			FP.T["UndoBufferPushValueConfigUnmarshalFailure"],
-			c.ResetStyle,
+			c.Reset,
 		))
 	}
 
@@ -50,7 +50,7 @@ func undo() {
 			FP.T["UndoBufferNothingToUndo"],
 			FP.UndoBufferPos+1,
 			undoBufferLen,
-			c.ResetStyle,
+			c.Reset,
 		))
 
 		return
@@ -66,7 +66,7 @@ func undo() {
 		FP.T["UndoBufferUndoAction"],
 		FP.UndoBufferPos+1,
 		undoBufferLen,
-		c.ResetStyle,
+		c.Reset,
 	))
 
 	populateProfilesPage()
@@ -89,7 +89,7 @@ func redo() {
 			FP.T["UndoBufferNothingToRedo"],
 			FP.UndoBufferPos+1,
 			undoBufferLen,
-			c.ResetStyle,
+			c.Reset,
 		))
 
 		return
@@ -105,7 +105,7 @@ func redo() {
 		FP.T["UndoBufferRedoAction"],
 		FP.UndoBufferPos+1,
 		undoBufferLen,
-		c.ResetStyle,
+		c.Reset,
 	))
 
 	populateProfilesPage()
@@ -179,7 +179,7 @@ func modified() {
 				"%v%v%v",
 				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferCannotMarshalConfigError"],
-				c.ResetStyle,
+				c.Reset,
 			))
 		}
 
@@ -194,7 +194,7 @@ func modified() {
 					"%v%v%v",
 					FP.Colors["ProfileStatusTextError"],
 					FP.T["UndoBufferConfigDecompressionError"],
-					c.ResetStyle,
+					c.Reset,
 				))
 			}
 		}
@@ -207,7 +207,7 @@ func modified() {
 				FP.T["UndoBufferNoChange"],
 				FP.UndoBufferPos+1,
 				len(FP.UndoBuffer),
-				c.ResetStyle,
+				c.Reset,
 			))
 
 			return
@@ -230,7 +230,7 @@ func modified() {
 			"%v%v%v",
 			FP.Colors["ProfileStatusTextError"],
 			FP.T["UndoBufferCannotMarshalConfigError"],
-			c.ResetStyle,
+			c.Reset,
 		))
 	}
 
@@ -246,7 +246,7 @@ func modified() {
 				"%v%v%v",
 				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferConfigCompressionError"],
-				c.ResetStyle,
+				c.Reset,
 			))
 		}
 	}
@@ -265,7 +265,7 @@ func modified() {
 	FP.ProfileStatusText.SetText(fmt.Sprintf(
 		"%v%v*%v[%v/%v %vkB]%v",
 		FP.Colors["ProfileStatusTextModifiedMarker"],
-		c.ResetStyle,
+		c.Reset,
 		FP.Colors["ProfileStatusTextPassive"],
 		// FP.FlagConfigFile,
 		FP.UndoBufferPos+1,
@@ -273,6 +273,6 @@ func modified() {
 		// float64(len(bgz)/1000),
 		// float64(len(b)/1000),
 		float64(totalUndoBufferSize/1000),
-		c.ResetStyle,
+		c.Reset,
 	))
 }

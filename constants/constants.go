@@ -49,7 +49,8 @@ const (
 	ConfigVersion = "1"
 )
 
-const ResetStyle = "[-:-:-:-]"
+// Reset causes any tcell styling to be unset.
+const Reset = "[-:-:-:-]"
 
 const (
 	WeekdayMondayInt = iota
@@ -107,30 +108,6 @@ const (
 	ColorInactive = "[gray::i]"
 
 	ColorColumnAmountPositive = "[lightgreen]"
-)
-
-// results page values
-
-const (
-	ColumnDate                = "Date"
-	ColumnBalance             = "Balance"
-	ColumnCumulativeIncome    = "CumulativeIncome"
-	ColumnCumulativeExpenses  = "CumulativeExpenses"
-	ColumnDayExpenses         = "DayExpenses"
-	ColumnDayIncome           = "DayIncome"
-	ColumnDayNet              = "DayNet"
-	ColumnDiffFromStart       = "DiffFromStart"
-	ColumnDayTransactionNames = "DayTransactionNames"
-
-	ColorColumnResultsDate                = "[#8899dd]"
-	ColorColumnResultsBalance             = "[white::b]"
-	ColorColumnResultsCumulativeIncome    = "[lightgreen]"
-	ColorColumnResultsCumulativeExpenses  = "[gold]"
-	ColorColumnResultsDayExpenses         = "[orange]"
-	ColorColumnResultsDayIncome           = "[lightgreen]"
-	ColorColumnResultsDayNet              = "[#cccccc]"
-	ColorColumnResultsDiffFromStart       = "[lightgoldenrodyellow]"
-	ColorColumnResultsDayTransactionNames = "[smoke]"
 )
 
 // Actions that can be mapped to keybindings.
@@ -320,43 +297,6 @@ const (
 	DefaultBindingHelp       = "Rune[?]"
 	DefaultBindingSearch     = "Rune[/]"
 )
-
-const (
-	ColumnDateIndex = iota
-	ColumnBalanceIndex
-	ColumnCumulativeIncomeIndex
-	ColumnCumulativeExpensesIndex
-	ColumnDayExpensesIndex
-	ColumnDayIncomeIndex
-	ColumnDayNetIndex
-	ColumnDiffFromStartIndex
-	ColumnDayTransactionNamesIndex
-)
-
-var ResultsColumns = []string{
-	ColumnDate,
-	ColumnBalance,
-	ColumnCumulativeIncome,
-	ColumnCumulativeExpenses,
-	ColumnDayExpenses,
-	ColumnDayIncome,
-	ColumnDayNet,
-	ColumnDiffFromStart,
-	ColumnDayTransactionNames,
-}
-
-// ResultsColumnsIndexes should be the same length as the "columns" variable.
-var ResultsColumnsIndexes = []int{
-	ColumnDateIndex,
-	ColumnBalanceIndex,
-	ColumnCumulativeIncomeIndex,
-	ColumnCumulativeExpensesIndex,
-	ColumnDayExpensesIndex,
-	ColumnDayIncomeIndex,
-	ColumnDayNetIndex,
-	ColumnDiffFromStartIndex,
-	ColumnDayTransactionNamesIndex,
-}
 
 // Magic numbers that are used in multiple places.
 const (

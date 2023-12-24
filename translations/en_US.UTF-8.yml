@@ -55,6 +55,30 @@ UndoBufferDecompressionCloseError: failed to gz decompress
 UndoBufferConfigCompressionError: failed to compress config before adding to undo buffer
 UndoBufferConfigDecompressionError: failed to decompress the previously stored config from undo buffer
 
+ResultsFormStartYearLabel: "Start Year"
+ResultsFormStartMonthLabel: "Start Month"
+ResultsFormStartDayLabel: "Start Day"
+ResultsFormEndYearLabel: "End Year"
+ResultsFormEndMonthLabel: "End Month"
+ResultsFormEndDayLabel: "End Day"
+ResultsFormStartingBalanceLabel: "Starting Balance"
+ResultsFormSubmitButtonLabel: "Submit"
+ResultsForm1yearButtonLabel: "1 year"
+ResultsForm5yearsButtonLabel: "5 years"
+ResultsFormStatsButtonLabel: "Stats"
+
+ResultsTableTitle: "Results"
+
+ResultsColumnDate: Date
+ResultsColumnBalance: Balance
+ResultsColumnCumulativeIncome: CumulativeIncome
+ResultsColumnCumulativeExpenses: CumulativeExpenses
+ResultsColumnDayExpenses: DayExpenses
+ResultsColumnDayIncome: DayIncome
+ResultsColumnDayNet: DayNet
+ResultsColumnDiffFromStart: DiffFromStart
+ResultsColumnDayTransactionNames: DayTransactionNames
+
 HelpTextTemplate: |
   [lightgreen::b]Finance Planner[-:-:-:-]
 
