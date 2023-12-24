@@ -55,6 +55,39 @@ UndoBufferDecompressionCloseError: failed to gz decompress
 UndoBufferConfigCompressionError: failed to compress config before adding to undo buffer
 UndoBufferConfigDecompressionError: failed to decompress the previously stored config from undo buffer
 
+TransactionsInputFieldPlaceholderLabel: editor appears here when editing
+
+TransactionsColumnAmount: "Amount"
+TransactionsColumnActive: "Active"
+TransactionsColumnName: "Name"
+TransactionsColumnFrequency: "Frequency"
+TransactionsColumnInterval: "Interval"
+TransactionsColumnMonday: "Monday"
+TransactionsColumnTuesday: "Tuesday"
+TransactionsColumnWednesday: "Wednesday"
+TransactionsColumnThursday: "Thursday"
+TransactionsColumnFriday: "Friday"
+TransactionsColumnSaturday: "Saturday"
+TransactionsColumnSunday: "Sunday"
+TransactionsColumnStarts: "Starts"
+TransactionsColumnEnds: "Ends"
+TransactionsColumnNote: "Note"
+TransactionsColumnID: "ID"
+TransactionsColumnCreatedAt: "CreatedAt"
+TransactionsColumnUpdatedAt: "UpdatedAt"
+
+TransactionsColumnSortNone: "none"
+TransactionsColumnSortDesc: "Desc"
+TransactionsColumnSortAsc: "Asc"
+
+WeekdayMonday: "Monday"
+WeekdayTuesday: "Tuesday"
+WeekdayWednesday: "Wednesday"
+WeekdayThursday: "Thursday"
+WeekdayFriday: "Friday"
+WeekdaySaturday: "Saturday"
+WeekdaySunday: "Sunday"
+
 ResultsFormStartYearLabel: "Start Year"
 ResultsFormStartMonthLabel: "Start Month"
 ResultsFormStartDayLabel: "Start Day"

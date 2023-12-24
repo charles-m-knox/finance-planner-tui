@@ -1,4 +1,8 @@
 ---
+# Make sure to respect the fact that some colors have brackets, whereas others
+# do not. The ones that do not have brackets are fed directly into
+# tcell.ColorNames[] at runtime, and can yield errors if invalid.
+
 # profiles page bottom left status bar
 ProfileStatusTextError: "[red]"
 ProfileStatusTextPassive: "[gray]"
@@ -27,6 +31,11 @@ TransactionsColumnUpdatedAT: "[blue]"
 
 TransactionsInactive: "[gray::i]"
 TransactionsAmountPositive: "[lightgreen]"
+
+TransactionsInputFieldBlurredBackground: "black"
+TransactionsInputFieldFocusedBackground: "dimgray"
+TransactionsInputFieldPassive: "[gray]"
+TransactionsInputFieldActive: "[lightgreen::b]"
 
 # results page
 ResultsColumnDate: "[#8899dd]"

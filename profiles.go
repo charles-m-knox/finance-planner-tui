@@ -42,9 +42,11 @@ func populateProfilesPage() {
 	}
 }
 
+// This should only ever be called once, upon application startup.
+//
 // returns a simple flex view with two columns:
 // - a list of profiles (left side)
-// - a quick summary of bills / stats for the highlighted profile (right side)
+// - a quick summary of bills / stats for the highlighted profile (right side).
 func getProfilesPage() *tview.Flex {
 	FP.ProfileList = tview.NewList()
 	FP.ProfileList.SetBorder(true)
@@ -69,7 +71,15 @@ func getProfilesPage() *tview.Flex {
 	FP.TransactionsInputField.SetBorder(true)
 
 	FP.TransactionsInputField.SetFieldBackgroundColor(tcell.ColorBlack)
-	FP.TransactionsInputField.SetLabel(fmt.Sprintf("[gray] %v%v", FP.T["ProfilesPageInputFieldAppearsHere"], c.Reset))
+	FP.TransactionsInputField.SetLabel(fmt.Sprintf(
+		"%v%v%v",
+		FP.Colors["TransactionsInputFieldPassive"],
+		FP.T["ProfilesPageInputFieldAppearsHere"],
+		c.Reset,
+	))
+
+	FP.TransactionsSortMap = getTransactionsSortMap()
+	FP.WeekdaysMap = getWeekdaysMap()
 
 	populateProfilesPage()
 	getTransactionsTable()
@@ -84,7 +94,7 @@ func getProfilesPage() *tview.Flex {
 }
 
 // sets sensible default values for the currently selected profile, if they are
-// not defined. If there is no FP.SelectedProfile, this will do nothing
+// not defined. If there is no FP.SelectedProfile, this will do nothing.
 func setSelectedProfileDefaults() {
 	if FP.SelectedProfile == nil {
 		return

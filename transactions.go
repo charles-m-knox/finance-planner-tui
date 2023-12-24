@@ -13,31 +13,65 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/rivo/tview"
+	"github.com/teambition/rrule-go"
 )
 
+// When an input field loses focus, its auto-complete function needs to be
+// set to an empty slice, otherwise it may continue showing the auto-complete
+// dropdown after focus has moved elsewhere.
 func resetTransactionsInputFieldAutocomplete() {
-	FP.TransactionsInputField.SetAutocompleteFunc(func(currentText string) []string {
-		return []string{}
-	})
+	FP.TransactionsInputField.SetAutocompleteFunc(
+		func(currentText string) []string {
+			return []string{}
+		},
+	)
 }
 
+// When the transactions input field loses focus, either by direct user action
+// or some other event demanding focus elsewhere, this function should be
+// executed.
 func deactivateTransactionsInputField() {
-	FP.TransactionsInputField.SetFieldBackgroundColor(tcell.ColorBlack)
-	FP.TransactionsInputField.SetLabel("[gray] editor appears here when editing")
+	FP.TransactionsInputField.SetFieldBackgroundColor(
+		tcell.ColorNames[FP.Colors["TransactionsInputFieldBlurredBackground"]],
+	)
+
+	FP.TransactionsInputField.SetLabel(fmt.Sprintf("%v%v%v",
+		FP.Colors["TransactionsInputFieldPassive"],
+		FP.T["TransactionsInputFieldPlaceholderLabel"],
+		c.Reset,
+	))
+
 	FP.TransactionsInputField.SetText("")
 
-	if FP.Previous != nil {
-		FP.App.SetFocus(FP.Previous)
+	if FP.Previous == nil {
+		return
 	}
+
+	FP.App.SetFocus(FP.Previous)
 }
 
-// focuses the transactions input field, updates its label, and sets
-// its background color to something noticeable
+// Focuses the transactions input field, updates its label, and sets
+// its background color to something noticeable.
 func activateTransactionsInputField(msg, value string) {
 	resetTransactionsInputFieldAutocomplete()
+	activateTransactionsInputFieldNoAutocompleteReset(msg, value)
+}
 
-	FP.TransactionsInputField.SetFieldBackgroundColor(tcell.ColorDimGray)
-	FP.TransactionsInputField.SetLabel(fmt.Sprintf("[lightgreen::b] %v[-:-:-:-]", msg))
+// Focuses the transactions input field, updates its label, and sets
+// its background color to something noticeable - in some cases, the
+// resetTransactionsInputFieldAutocomplete cannot be called without risking
+// an infinite loop, so this function does not call it.
+func activateTransactionsInputFieldNoAutocompleteReset(msg, value string) {
+	FP.TransactionsInputField.SetFieldBackgroundColor(
+		tcell.ColorNames[FP.Colors["TransactionsInputFieldFocusedBackground"]],
+	)
+
+	FP.TransactionsInputField.SetLabel(fmt.Sprintf("%v%v%v",
+		FP.Colors["TransactionsInputFieldActive"],
+		msg,
+		c.Reset,
+	))
+
 	FP.TransactionsInputField.SetText(value)
 
 	// don't mess with the previously stored focus if the text field is already
@@ -52,29 +86,329 @@ func activateTransactionsInputField(msg, value string) {
 	FP.App.SetFocus(FP.TransactionsInputField)
 }
 
-// focuses the transactions input field, updates its label, and sets
-// its background color to something noticeable - in some cases, the
-// resetTransactionsInputFieldAutocomplete cannot be called without risking
-// an infinite loop, so this function does not call it
-func activateTransactionsInputFieldNoAutocompleteReset(msg, value string) {
-	FP.TransactionsInputField.SetFieldBackgroundColor(tcell.ColorDimGray)
-	FP.TransactionsInputField.SetLabel(fmt.Sprintf("[lightgreen::b] %v[-:-:-:-]", msg))
-	FP.TransactionsInputField.SetText(value)
+// Cycles through the available sortable configurations for the current set of
+// transactions, then proceeds to update the transactions table.
+func setTransactionsTableSort(column string) {
+	FP.SortTX = lib.GetNextSort(FP.SortTX, column)
 
-	// don't mess with the previously stored focus if the text field is already
-	// focused
-	currentFocus := FP.App.GetFocus()
-	if currentFocus == FP.TransactionsInputField {
-		return
+	getTransactionsTable()
+}
+
+func getWeekdaysMap() map[string]int {
+	return map[string]int{
+		FP.T["WeekdayMonday"]:    rrule.MO.Day(),
+		FP.T["WeekdayTuesday"]:   rrule.TU.Day(),
+		FP.T["WeekdayWednesday"]: rrule.WE.Day(),
+		FP.T["WeekdayThursday"]:  rrule.TH.Day(),
+		FP.T["WeekdayFriday"]:    rrule.FR.Day(),
+		FP.T["WeekdaySaturday"]:  rrule.SA.Day(),
+		FP.T["WeekdaySunday"]:    rrule.SU.Day(),
+	}
+}
+
+type (
+	TxSortFunc        func(ti, tj lib.TX) bool
+	TxSortChooserFunc func(bool) TxSortFunc
+)
+
+// weekday sort functions
+
+func sortWeekday(weekdays map[string]int, day string, asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		tiw := slices.Index(ti.Weekdays, weekdays[day]) != -1
+		tjw := slices.Index(tj.Weekdays, weekdays[day]) != -1
+
+		if asc {
+			if tiw == tjw {
+				return ti.ID > tj.ID
+			}
+
+			return tiw
+		}
+
+		if tiw == tjw {
+			return ti.ID < tj.ID
+		}
+
+		return tjw
+	}
+}
+
+// numeric sort functions
+
+func sortAmount(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		if asc {
+			if ti.Amount == tj.Amount {
+				return ti.ID > tj.ID
+			}
+
+			return ti.Amount > tj.Amount
+		}
+
+		if ti.Amount == tj.Amount {
+			return ti.ID < tj.ID
+		}
+
+		return ti.Amount < tj.Amount
+	}
+}
+
+func sortFrequency(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		if asc {
+			if ti.Frequency == tj.Frequency {
+				return ti.ID > tj.ID
+			}
+
+			return ti.Frequency > tj.Frequency
+		}
+
+		if ti.Frequency == tj.Frequency {
+			return ti.ID < tj.ID
+		}
+
+		return ti.Frequency < tj.Frequency
+	}
+}
+
+func sortInterval(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		if asc {
+			if ti.Interval == tj.Interval {
+				return ti.ID > tj.ID
+			}
+
+			return ti.Interval > tj.Interval
+		}
+
+		if ti.Interval == tj.Interval {
+			return ti.ID < tj.ID
+		}
+
+		return ti.Interval < tj.Interval
+	}
+}
+
+// string sort functions
+
+func sortNote(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		til := strings.ToLower(ti.Note)
+		tjl := strings.ToLower(tj.Note)
+
+		if asc {
+			if til == tjl {
+				return ti.ID > tj.ID
+			}
+
+			return til > tjl
+		}
+
+		if til == tjl {
+			return ti.ID < tj.ID
+		}
+
+		return til < tjl
+	}
+}
+
+func sortName(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		til := strings.ToLower(ti.Name)
+		tjl := strings.ToLower(tj.Name)
+
+		if asc {
+			if til == tjl {
+				return ti.ID > tj.ID
+			}
+
+			return til > tjl
+		}
+
+		if til == tjl {
+			return ti.ID < tj.ID
+		}
+
+		return til < tjl
+	}
+}
+
+func sortID(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		til := strings.ToLower(ti.ID)
+		tjl := strings.ToLower(tj.ID)
+
+		if asc {
+			if til == tjl {
+				return ti.ID > tj.ID
+			}
+
+			return til > tjl
+		}
+
+		if til == tjl {
+			return ti.ID < tj.ID
+		}
+
+		return til < tjl
+	}
+}
+
+// string-typed date sorting functions
+
+func sortStarts(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		tis := ti.GetStartDateString()
+		tjs := tj.GetStartDateString()
+
+		if asc {
+			if tis == tjs {
+				return ti.ID > tj.ID
+			}
+
+			return tis > tjs
+		}
+
+		if tis == tjs {
+			return ti.ID < tj.ID
+		}
+
+		return tis < tjs
+	}
+}
+
+func sortEnds(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		tis := ti.GetEndsDateString()
+		tjs := tj.GetEndsDateString()
+
+		if asc {
+			if tis == tjs {
+				return ti.ID > tj.ID
+			}
+
+			return tis > tjs
+		}
+
+		if tis == tjs {
+			return ti.ID < tj.ID
+		}
+
+		return tis < tjs
+	}
+}
+
+// strongly typed date sorting functions
+
+// TODO: validate that this works as expected
+func sortCreatedAt(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		if asc {
+			return ti.CreatedAt.After(tj.CreatedAt)
+		}
+
+		return ti.CreatedAt.Before(tj.CreatedAt)
+	}
+}
+
+// TODO: validate that this works as expected
+func sortUpdatedAt(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		if asc {
+			return ti.UpdatedAt.After(tj.UpdatedAt)
+		}
+
+		return ti.UpdatedAt.Before(tj.UpdatedAt)
+	}
+}
+
+// boolean sort functions
+
+func sortActive(asc bool) TxSortFunc {
+	return func(ti, tj lib.TX) bool {
+		if asc {
+			if ti.Active == tj.Active {
+				return ti.ID > tj.ID
+			}
+
+			return ti.Active
+		}
+
+		if ti.Active == tj.Active {
+			return ti.ID < tj.ID
+		}
+
+		return tj.Active
+	}
+}
+
+type TransactionsColumn struct {
+	Name     string
+	SortFunc TxSortChooserFunc
+	// If true, the SortFunc will receive true/false
+	// to determine if it should sort by ascending/descending.
+	Ascending bool
+}
+
+// Returns an ordered list of the columns that will be shown in the transactions
+// table, as well as their sort functions.
+func getTransactionsColumns() map[string]TransactionsColumn {
+	mo := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnMonday"], b) }
+	tu := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnTuesday"], b) }
+	we := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnWednesday"], b) }
+	th := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnThursday"], b) }
+	fr := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnFriday"], b) }
+	sa := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnSaturday"], b) }
+	su := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnSunday"], b) }
+
+	return map[string]TransactionsColumn{
+		FP.T["TransactionsColumnAmount"]:    {SortFunc: sortAmount},
+		FP.T["TransactionsColumnActive"]:    {SortFunc: sortActive},
+		FP.T["TransactionsColumnName"]:      {SortFunc: sortName},
+		FP.T["TransactionsColumnFrequency"]: {SortFunc: sortFrequency},
+		FP.T["TransactionsColumnInterval"]:  {SortFunc: sortInterval},
+		FP.T["TransactionsColumnMonday"]:    {SortFunc: mo},
+		FP.T["TransactionsColumnTuesday"]:   {SortFunc: tu},
+		FP.T["TransactionsColumnWednesday"]: {SortFunc: we},
+		FP.T["TransactionsColumnThursday"]:  {SortFunc: th},
+		FP.T["TransactionsColumnFriday"]:    {SortFunc: fr},
+		FP.T["TransactionsColumnSaturday"]:  {SortFunc: sa},
+		FP.T["TransactionsColumnSunday"]:    {SortFunc: su},
+		FP.T["TransactionsColumnStarts"]:    {SortFunc: sortStarts},
+		FP.T["TransactionsColumnEnds"]:      {SortFunc: sortEnds},
+		FP.T["TransactionsColumnNote"]:      {SortFunc: sortNote},
+	}
+}
+
+// Returns the possible sortable directions for all columns, which is simply
+// Asc and Desc, but loaded from the translations table. If the value is true,
+// it means that it is an ascending sort; false if descending.
+func getSortableDirections() map[string]bool {
+	return map[string]bool{
+		FP.T["TransactionsColumnSortAsc"]:  true,
+		FP.T["TransactionsColumnSortDesc"]: false,
+	}
+}
+
+// For an input string such as "AmountAsc", this will return a predefined sort
+// function that can be executed.
+// TODO: this only needs to be calculated once upon startup, so propagate it
+// to the global state and refer to it later
+func getTransactionsSortMap() map[string]TxSortFunc {
+	m := make(map[string]TxSortFunc)
+	dirs := getSortableDirections()
+	for col, def := range getTransactionsColumns() {
+		for dir, asc := range dirs {
+			m[fmt.Sprintf("%v%v", col, dir)] = def.SortFunc(asc)
+		}
 	}
 
-	FP.Previous = currentFocus
-
-	FP.App.SetFocus(FP.TransactionsInputField)
+	return m
 }
 
 // Sorts all transactions by the current sort column.
-func sortTX() {
+func sortTX(sortMap map[string]TxSortFunc) {
 	if FP.SortTX == c.None || FP.SortTX == "" {
 		return
 	}
@@ -84,230 +418,10 @@ func sortTX() {
 	sort.SliceStable(
 		FP.SelectedProfile.TX,
 		func(i, j int) bool {
-			tj := (FP.SelectedProfile.TX)[j]
 			ti := (FP.SelectedProfile.TX)[i]
+			tj := (FP.SelectedProfile.TX)[j]
 
-			switch FP.SortTX {
-			// invisible order column (default when no sort is set)
-			// case c.None:
-			// return tj.Order > ti.Order
-
-			// Order
-			// case fmt.Sprintf("%v%v", c.ColumnOrder, c.Asc):
-			// 	return ti.Order > tj.Order
-			// case fmt.Sprintf("%v%v", c.ColumnOrder, c.Desc):
-			// 	return ti.Order < tj.Order
-
-			// active
-			case fmt.Sprintf("%v%v", c.ColumnActive, c.Asc):
-				if ti.Active == tj.Active {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return ti.Active
-			case fmt.Sprintf("%v%v", c.ColumnActive, c.Desc):
-				if ti.Active == tj.Active {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tj.Active
-
-			// weekdays
-			case fmt.Sprintf("%v%v", c.WeekdayMonday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayMondayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayMondayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdayMonday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayMondayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayMondayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			case fmt.Sprintf("%v%v", c.WeekdayTuesday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayTuesdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayTuesdayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdayTuesday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayTuesdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayTuesdayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			case fmt.Sprintf("%v%v", c.WeekdayWednesday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayWednesdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayWednesdayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdayWednesday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayWednesdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayWednesdayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			case fmt.Sprintf("%v%v", c.WeekdayThursday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayThursdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayThursdayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdayThursday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayThursdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayThursdayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			case fmt.Sprintf("%v%v", c.WeekdayFriday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayFridayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayFridayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdayFriday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdayFridayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdayFridayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			case fmt.Sprintf("%v%v", c.WeekdaySaturday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdaySaturdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdaySaturdayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdaySaturday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdaySaturdayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdaySaturdayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			case fmt.Sprintf("%v%v", c.WeekdaySunday, c.Asc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdaySundayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdaySundayInt) != -1
-				if tiw == tjw {
-					return ti.ID > tj.ID
-					// return ti.Order > tj.Order
-				}
-
-				return tiw
-
-			case fmt.Sprintf("%v%v", c.WeekdaySunday, c.Desc):
-				tiw := slices.Index(ti.Weekdays, c.WeekdaySundayInt) != -1
-				tjw := slices.Index(tj.Weekdays, c.WeekdaySundayInt) != -1
-				if tiw == tjw {
-					return ti.ID < tj.ID
-					// return ti.Order < tj.Order
-				}
-
-				return tjw
-
-			// other columns
-			case fmt.Sprintf("%v%v", c.ColumnAmount, c.Asc):
-				return ti.Amount > tj.Amount
-			case fmt.Sprintf("%v%v", c.ColumnAmount, c.Desc):
-				return ti.Amount < tj.Amount
-
-			case fmt.Sprintf("%v%v", c.ColumnFrequency, c.Asc):
-				return ti.Frequency > tj.Frequency
-			case fmt.Sprintf("%v%v", c.ColumnFrequency, c.Desc):
-				return ti.Frequency < tj.Frequency
-
-			case fmt.Sprintf("%v%v", c.ColumnInterval, c.Asc):
-				return ti.Interval > tj.Interval
-			case fmt.Sprintf("%v%v", c.ColumnInterval, c.Desc):
-				return ti.Interval < tj.Interval
-			case fmt.Sprintf("%v%v", c.ColumnNote, c.Asc):
-				return strings.ToLower(ti.Note) > strings.ToLower(tj.Note)
-			case fmt.Sprintf("%v%v", c.ColumnNote, c.Desc):
-				return strings.ToLower(ti.Note) < strings.ToLower(tj.Note)
-
-			case fmt.Sprintf("%v%v", c.ColumnName, c.Asc):
-				return strings.ToLower(ti.Name) > strings.ToLower(tj.Name)
-			case fmt.Sprintf("%v%v", c.ColumnName, c.Desc):
-				return strings.ToLower(ti.Name) < strings.ToLower(tj.Name)
-
-			case fmt.Sprintf("%v%v", c.ColumnID, c.Asc):
-				return strings.ToLower(ti.ID) > strings.ToLower(tj.ID)
-			case fmt.Sprintf("%v%v", c.ColumnID, c.Desc):
-				return strings.ToLower(ti.ID) < strings.ToLower(tj.ID)
-
-			case fmt.Sprintf("%v%v", c.ColumnCreatedAt, c.Asc):
-				return tj.CreatedAt.After(tj.CreatedAt)
-			case fmt.Sprintf("%v%v", c.ColumnCreatedAt, c.Desc):
-				return ti.CreatedAt.Before(tj.CreatedAt)
-
-			case fmt.Sprintf("%v%v", c.ColumnUpdatedAt, c.Asc):
-				return ti.UpdatedAt.After(tj.UpdatedAt)
-			case fmt.Sprintf("%v%v", c.ColumnUpdatedAt, c.Desc):
-				return ti.UpdatedAt.Before(tj.UpdatedAt)
-
-			case fmt.Sprintf("%v%v", c.ColumnStarts, c.Asc):
-				return ti.GetStartDateString() > tj.GetStartDateString()
-			case fmt.Sprintf("%v%v", c.ColumnStarts, c.Desc):
-				return ti.GetStartDateString() < tj.GetStartDateString()
-
-			case fmt.Sprintf("%v%v", c.ColumnEnds, c.Asc):
-				return ti.GetEndsDateString() > tj.GetEndsDateString()
-			case fmt.Sprintf("%v%v", c.ColumnEnds, c.Desc):
-				return ti.GetEndsDateString() < tj.GetEndsDateString()
-
-			default:
-				return false
-			}
+			return sortMap[FP.SortTX](ti, tj)
 		},
 	)
 }
@@ -475,7 +589,8 @@ func getTransactionsTable() {
 	// FP.TransactionsTable.SetCell(0, 17, cellColumnUpdatedAt)
 
 	if FP.SelectedProfile != nil {
-		sortTX()
+		sortTX(FP.TransactionsSortMap)
+
 		// start by populating the table with the columns first
 		for i, tx := range FP.SelectedProfile.TX {
 			isPositiveAmount := tx.Amount >= 0
@@ -1371,10 +1486,4 @@ func getTransactionsTable() {
 	FP.TransactionsTable.SetBorders(false).
 		SetSelectable(true, true). // set row & cells to be selectable
 		SetSeparator(' ')
-}
-
-func setTransactionsTableSort(column string) {
-	FP.SortTX = lib.GetNextSort(FP.SortTX, column)
-
-	getTransactionsTable()
 }

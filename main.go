@@ -170,6 +170,16 @@ type FinancePlanner struct {
 	// All default & custom colors are stored in here at runtime. Themes can be
 	// loaded via FlagTheme.
 	Colors map[string]string
+
+	// For an input string such as "AmountAsc", this will return a predefined sort
+	// function that can be executed.
+	TransactionsSortMap map[string]TxSortFunc
+
+	// An index of the days of the week. This is needed so that we can create a
+	// direct mapping between the translation table's weekday entries and the
+	// acceptable rrule.Weekday values (which regard Monday as the start of
+	// the week, instead of Sunday, which is what the Go standard lib does).
+	WeekdaysMap map[string]int
 }
 
 // FP contains all shared data in a global. Avoid using globals where possible,
