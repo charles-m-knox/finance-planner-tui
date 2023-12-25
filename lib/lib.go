@@ -120,6 +120,50 @@ func GetNewTX() TX {
 	}
 }
 
+// GetWeekdaysMap returns a map that can be used like this:
+//
+// m := GetWeekdaysMap()
+//
+// if m[rrule.MO.Day()] { /* do something * / }
+//
+// It is meant to be more efficient than repeatedly using tx.HasWeekday()
+// to determine if a weekday is present in a given TX.
+func (tx *TX) GetWeekdaysMap() map[int]bool {
+	m := make(map[int]bool)
+	for i := 0; i < 7; i++ {
+		m[i] = false
+	}
+
+	for i := range tx.Weekdays {
+		m[tx.Weekdays[i]] = true
+	}
+
+	return m
+}
+
+// GetWeekdaysCheckedMap returns a map that can be used like this:
+//
+// checkedGlyph := "X"
+// uncheckedGlyph := " "
+// m := GetWeekdaysCheckedMap(checkedGlyph)
+//
+// log.Println("occurs on mondays: %v", m[rrule.MO.Day()])
+//
+// It is meant to be more efficient than repeatedly using tx.HasWeekday()
+// to determine if a weekday is present in a given TX.
+func (tx *TX) GetWeekdaysCheckedMap(checked, unchecked string) map[int]string {
+	m := make(map[int]string)
+	for i := 0; i < 7; i++ {
+		m[i] = unchecked
+	}
+
+	for i := range tx.Weekdays {
+		m[tx.Weekdays[i]] = checked
+	}
+
+	return m
+}
+
 // HasWeekday checks if a recurring transaction definition contains
 // the specified weekday as an rrule recurrence day of the week.
 func (tx *TX) HasWeekday(weekday int) bool {

@@ -2,6 +2,8 @@
 
 TODO:
 
+- change all refs to c.Reset to tcell.ColorReset
+- debug config.yml loading errors
 - create xdg config dir when loading configs
 - finish translations into english
 - allow disabling mouse support so that things can be copied (config propery, or even through a shortcut?)

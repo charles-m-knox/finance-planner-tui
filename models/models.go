@@ -40,4 +40,5 @@ type TableCell struct {
 	Color  string
 	Text   string
 	Expand int
+	Align  int
 }

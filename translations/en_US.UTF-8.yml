@@ -1,4 +1,7 @@
 ---
+CheckedGlyph: "✔"
+UncheckedGlyph: " "
+
 FlagConfigFileDesc: the file to load from and save to
 FlagConfigFileFlag: f
 FlagShouldMigrateDesc: whether or not to migrate a file named conf.json in the current directory from a previous config version to the latest version and save it as migrated.yml
@@ -29,16 +32,16 @@ PromptKeyboardEchoModeText: |
 
   This was triggered by passing the -kb flag to this application on startup."
 
-ConfigFailedToLoadConfig: "failed to read config from"
-ConfigFailedToUnmarshalConfig: "failed to unmarshal config from"
+ConfigFailedToLoadConfig: failed to read config from
+ConfigFailedToUnmarshalConfig: failed to unmarshal config from
 
 ProfilesPageTitle: Profiles
 ProfilesPageProfileOpenMarker: "(open)"
 ProfilesPageStatusTextNoChanges: no changes
 ProfilesPageInputFieldAppearsHere: editor appears here when editing
 ResultsTableStatusCalculatingPleaseWait: "calculating results, please wait..."
-ResultsStatsErrorGettingStats: "error getting stats"
-ResultsGenerationFailed: "error getting results"
+ResultsStatsErrorGettingStats: error getting stats
+ResultsGenerationFailed: error getting results
 
 UndoBufferUndoAction: undo
 UndoBufferNothingToUndo: nothing to undo
@@ -57,52 +60,52 @@ UndoBufferConfigDecompressionError: failed to decompress the previously stored c
 
 TransactionsInputFieldPlaceholderLabel: editor appears here when editing
 
-TransactionsTableTitle: "Transactions"
+TransactionsTableTitle: Transactions
 
-TransactionsColumnAmount: "Amount"
-TransactionsColumnActive: "Active"
-TransactionsColumnName: "Name"
-TransactionsColumnFrequency: "Frequency"
-TransactionsColumnInterval: "Interval"
-TransactionsColumnMonday: "Monday"
-TransactionsColumnTuesday: "Tuesday"
-TransactionsColumnWednesday: "Wednesday"
-TransactionsColumnThursday: "Thursday"
-TransactionsColumnFriday: "Friday"
-TransactionsColumnSaturday: "Saturday"
-TransactionsColumnSunday: "Sunday"
-TransactionsColumnStarts: "Starts"
-TransactionsColumnEnds: "Ends"
-TransactionsColumnNote: "Note"
-TransactionsColumnID: "ID"
-TransactionsColumnCreatedAt: "CreatedAt"
-TransactionsColumnUpdatedAt: "UpdatedAt"
+TransactionsColumnAmount: Amount
+TransactionsColumnActive: Active
+TransactionsColumnName: Name
+TransactionsColumnFrequency: Frequency
+TransactionsColumnInterval: Interval
+TransactionsColumnMonday: Monday
+TransactionsColumnTuesday: Tuesday
+TransactionsColumnWednesday: Wednesday
+TransactionsColumnThursday: Thursday
+TransactionsColumnFriday: Friday
+TransactionsColumnSaturday: Saturday
+TransactionsColumnSunday: Sunday
+TransactionsColumnStarts: Starts
+TransactionsColumnEnds: Ends
+TransactionsColumnNote: Note
+TransactionsColumnID: ID
+TransactionsColumnCreatedAt: CreatedAt
+TransactionsColumnUpdatedAt: UpdatedAt
 
-TransactionsColumnSortNone: "none"
-TransactionsColumnSortDesc: "Desc"
-TransactionsColumnSortAsc: "Asc"
+TransactionsColumnSortNone: none
+TransactionsColumnSortDesc: Desc
+TransactionsColumnSortAsc: Asc
 
-WeekdayMonday: "Monday"
-WeekdayTuesday: "Tuesday"
-WeekdayWednesday: "Wednesday"
-WeekdayThursday: "Thursday"
-WeekdayFriday: "Friday"
-WeekdaySaturday: "Saturday"
-WeekdaySunday: "Sunday"
+WeekdayMonday: Monday
+WeekdayTuesday: Tuesday
+WeekdayWednesday: Wednesday
+WeekdayThursday: Thursday
+WeekdayFriday: Friday
+WeekdaySaturday: Saturday
+WeekdaySunday: Sunday
 
-ResultsFormStartYearLabel: "Start Year"
-ResultsFormStartMonthLabel: "Start Month"
-ResultsFormStartDayLabel: "Start Day"
-ResultsFormEndYearLabel: "End Year"
-ResultsFormEndMonthLabel: "End Month"
-ResultsFormEndDayLabel: "End Day"
-ResultsFormStartingBalanceLabel: "Starting Balance"
-ResultsFormSubmitButtonLabel: "Submit"
-ResultsForm1yearButtonLabel: "1 year"
-ResultsForm5yearsButtonLabel: "5 years"
-ResultsFormStatsButtonLabel: "Stats"
+ResultsFormStartYearLabel: Start Year
+ResultsFormStartMonthLabel: Start Month
+ResultsFormStartDayLabel: Start Day
+ResultsFormEndYearLabel: End Year
+ResultsFormEndMonthLabel: End Month
+ResultsFormEndDayLabel: End Day
+ResultsFormStartingBalanceLabel: Starting Balance
+ResultsFormSubmitButtonLabel: Submit
+ResultsForm1yearButtonLabel: 1 year
+ResultsForm5yearsButtonLabel: 5 years
+ResultsFormStatsButtonLabel: Stats
 
-ResultsTableTitle: "Results"
+ResultsTableTitle: Results
 
 ResultsColumnDate: Date
 ResultsColumnBalance: Balance

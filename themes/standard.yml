@@ -29,11 +29,22 @@ TransactionsColumnID: "[gray]"
 TransactionsColumnCreatedAt: "[blue]"
 TransactionsColumnUpdatedAT: "[blue]"
 
+TransactionsColumnInactive: "[gray::i]"
+
 TransactionsInactive: "[gray::i]"
 TransactionsAmountPositive: "[lightgreen]"
 
+# these should ideally be hex values, as they are fed into tcell.GetColor(), but
+# they can be other values like "black"
+TransactionsRowSelectedColor: "#323232"
+TransactionsRowLastSelectedColor: "#1e1e1e"
+TransactionsRowSelectedAndLastSelectedColor: "#464646"
+
+# note: these two are tcell.ColorNames[] values, do not
+# surround with brackets
 TransactionsInputFieldBlurredBackground: "black"
 TransactionsInputFieldFocusedBackground: "dimgray"
+
 TransactionsInputFieldPassive: "[gray]"
 TransactionsInputFieldActive: "[lightgreen::b]"
 
