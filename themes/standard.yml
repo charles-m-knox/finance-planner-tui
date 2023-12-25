@@ -11,7 +11,7 @@ ProfileStatusTextModifiedMarker: "[white]"
 # transactions table columns
 TransactionsColumnOrder: "[gray]"
 TransactionsColumnAmount: "[gold]"
-TransactionsColumnActive: "[white]"
+TransactionsColumnActive: "[smoke]"
 TransactionsColumnName: "[#8899dd]"
 TransactionsColumnFrequency: "[#70dd70]"
 TransactionsColumnInterval: "[#de9a9a]"

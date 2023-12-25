@@ -31,19 +31,19 @@ type TX struct { // transaction
 	// https://labix.org/python-dateutil/#head-88ab2bc809145fcf75c074817911575616ce7caf
 	RRule string `yaml:"rrule"`
 	// for when users don't want to use the rrules:
-	Frequency   string    `yaml:"frequency"`
-	Interval    int       `yaml:"interval"`
-	Weekdays    []int     `yaml:"weekdays"` // monday starts on 0
-	StartsDay   int       `yaml:"startsDay"`
-	StartsMonth int       `yaml:"startsMonth"`
-	StartsYear  int       `yaml:"startsYear"`
-	EndsDay     int       `yaml:"endsDay"`
-	EndsMonth   int       `yaml:"endsMonth"`
-	EndsYear    int       `yaml:"endsYear"`
-	ID          string    `yaml:"id"`
-	CreatedAt   time.Time `yaml:"createdAt"`
-	UpdatedAt   time.Time `yaml:"updatedAt"`
-	Selected    bool      `yaml:"selected"` // when activated in the transactions table
+	Frequency   string       `yaml:"frequency"`
+	Interval    int          `yaml:"interval"`
+	Weekdays    map[int]bool `yaml:"weekdays"` // monday starts on 0
+	StartsDay   int          `yaml:"startsDay"`
+	StartsMonth int          `yaml:"startsMonth"`
+	StartsYear  int          `yaml:"startsYear"`
+	EndsDay     int          `yaml:"endsDay"`
+	EndsMonth   int          `yaml:"endsMonth"`
+	EndsYear    int          `yaml:"endsYear"`
+	ID          string       `yaml:"id"`
+	CreatedAt   time.Time    `yaml:"createdAt"`
+	UpdatedAt   time.Time    `yaml:"updatedAt"`
+	Selected    bool         `yaml:"selected"` // when activated in the transactions table
 }
 
 // FormatAsDate takes an input time and formats it using the standard
@@ -115,7 +115,7 @@ func GetNewTX() TX {
 		UpdatedAt:   now,
 		Note:        "",
 		RRule:       "",
-		Weekdays:    []int{},
+		Weekdays:    GetWeekdaysMap(),
 		Selected:    false,
 	}
 }
@@ -128,14 +128,31 @@ func GetNewTX() TX {
 //
 // It is meant to be more efficient than repeatedly using tx.HasWeekday()
 // to determine if a weekday is present in a given TX.
-func (tx *TX) GetWeekdaysMap() map[int]bool {
+// func (tx *TX) GetWeekdaysMap() map[int]bool {
+// 	m := make(map[int]bool)
+// 	for i := 0; i < 7; i++ {
+// 		m[i] = false
+// 	}
+
+// 	for i := range tx.Weekdays {
+// 		m[tx.Weekdays[i]] = true
+// 	}
+
+// 	return m
+// }
+
+// GetEmptyWeekdaysMap returns a map that can be used like this:
+//
+// m := GetWeekdaysMap()
+//
+// if m[rrule.MO.Day()] { /* do something * / }
+//
+// It is meant to be more efficient than repeatedly using tx.HasWeekday()
+// to determine if a weekday is present in a given TX.
+func GetWeekdaysMap() map[int]bool {
 	m := make(map[int]bool)
 	for i := 0; i < 7; i++ {
 		m[i] = false
-	}
-
-	for i := range tx.Weekdays {
-		m[tx.Weekdays[i]] = true
 	}
 
 	return m
@@ -153,12 +170,15 @@ func (tx *TX) GetWeekdaysMap() map[int]bool {
 // to determine if a weekday is present in a given TX.
 func (tx *TX) GetWeekdaysCheckedMap(checked, unchecked string) map[int]string {
 	m := make(map[int]string)
-	for i := 0; i < 7; i++ {
-		m[i] = unchecked
-	}
 
-	for i := range tx.Weekdays {
-		m[tx.Weekdays[i]] = checked
+	for k, v := range tx.Weekdays {
+		if !v {
+			m[k] = unchecked
+
+			continue
+		}
+
+		m[k] = checked
 	}
 
 	return m
@@ -166,67 +186,40 @@ func (tx *TX) GetWeekdaysCheckedMap(checked, unchecked string) map[int]string {
 
 // HasWeekday checks if a recurring transaction definition contains
 // the specified weekday as an rrule recurrence day of the week.
-func (tx *TX) HasWeekday(weekday int) bool {
-	for _, d := range tx.Weekdays {
-		if weekday == d {
-			return true
-		}
-	}
+// func (tx *TX) HasWeekday(weekday int) bool {
+// 	for k, v := range tx.Weekdays {
+// 		if weekday == d {
+// 			return true
+// 		}
+// 	}
 
-	return false
-}
+// 	return false
+// }
 
-// MarkupText will italicize and gray-out the provide input string value if
-// the value of tx.Active is false. Otherwise, it will simply return the input
-// string value unaltered. In the future this may change, as this function may
-// handle multiple different situations, depending on the state of tx.
-func (tx *TX) MarkupText(input string) string {
-	input = strings.ReplaceAll(input, "&", "&amp;")
-	if !tx.Active {
-		return fmt.Sprintf(`<i><span foreground="#AAAAAA">%v</span></i>`, input)
-	}
+// func ToggleDayFromWeekdays(weekdays []int, weekday int) []int {
+// 	if weekday < 0 || weekday > 6 {
+// 		return weekdays
+// 	}
 
-	return input
-}
+// 	foundWeekday := false
+// 	returnValue := []int{}
 
-// preserves the color of active currency values but italicizes values
-// according to enabled/disabled
-//
-// TODO: refactor/improve this, it doesn't really work as intended but I'm
-// lazy at the moment.
-func (tx *TX) MarkupCurrency(input string) string {
-	input = strings.ReplaceAll(input, "&", "&amp;")
-	if !tx.Active {
-		return fmt.Sprintf(`<i><span foreground="#CCCCCC">%v</span></i>`, input)
-	}
+// 	for i := range weekdays {
+// 		if weekdays[i] == weekday {
+// 			foundWeekday = true
+// 		} else {
+// 			returnValue = append(returnValue, weekdays[i])
+// 		}
+// 	}
 
-	return input
-}
+// 	if !foundWeekday {
+// 		returnValue = append(returnValue, weekday)
+// 	}
 
-func ToggleDayFromWeekdays(weekdays []int, weekday int) []int {
-	if weekday < 0 || weekday > 6 {
-		return weekdays
-	}
+// 	sort.Ints(returnValue)
 
-	foundWeekday := false
-	returnValue := []int{}
-
-	for i := range weekdays {
-		if weekdays[i] == weekday {
-			foundWeekday = true
-		} else {
-			returnValue = append(returnValue, weekdays[i])
-		}
-	}
-
-	if !foundWeekday {
-		returnValue = append(returnValue, weekday)
-	}
-
-	sort.Ints(returnValue)
-
-	return returnValue
-}
+// 	return returnValue
+// }
 
 func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance int, statusHook func(status string)) ([]Result, error) {
 	if startDate.After(endDate) {
@@ -320,11 +313,15 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 			} else if txi.Frequency == rrule.MONTHLY.String() {
 				freq = rrule.MONTHLY
 			}
-			// convert the user input weekdays into a value that rrule lib will
+			// convert the user-input weekdays into a value that rrule lib will
 			// accept
 			weekdays := []rrule.Weekday{}
-			for _, weekday := range txi.Weekdays {
-				switch weekday {
+			for weekdayInt, active := range txi.Weekdays {
+				if !active {
+					continue
+				}
+
+				switch weekdayInt {
 				case rrule.MO.Day():
 					weekdays = append(weekdays, rrule.MO)
 				case rrule.TU.Day():
@@ -343,6 +340,7 @@ func GetResults(tx []TX, startDate time.Time, endDate time.Time, startBalance in
 					break
 				}
 			}
+
 			// create the rule based on the input parameters from the user
 			s, err := rrule.NewRRule(rrule.ROption{
 				Freq:      freq,

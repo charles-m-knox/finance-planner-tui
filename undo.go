@@ -2,8 +2,9 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
+	"compress/flate"
 	"fmt"
+	"io"
 	"slices"
 
 	c "finance-planner-tui/constants"
@@ -11,15 +12,53 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func initializeUndo(b []byte, noGz bool) {
+	if noGz {
+		FP.UndoBuffer = [][]byte{b}
+	} else {
+		var err error
+
+		bgz, err := compress(b)
+		if err != nil {
+			FP.ProfileStatusText.SetText(fmt.Sprintf(
+				"%v%v%v",
+				FP.Colors["ProfileStatusTextError"],
+				FP.T["UndoBufferConfigCompressionError"],
+				c.Reset,
+			))
+		}
+
+		FP.UndoBuffer = [][]byte{bgz}
+	}
+
+	FP.UndoBufferPos = 0
+}
+
 // sets the FP.SelectedProfile & config to the value specified by the current
 // undo buffer
 //
 // warning: naively assumes that the FP.UndoBufferPos has already been set to a
 // valid value and updates the currently selected config & profile accordingly
-func pushUndoBufferChange() {
+func pushUndoBufferChangeToConfig() {
 	n := FP.SelectedProfile.Name
 
-	err := yaml.Unmarshal(FP.UndoBuffer[FP.UndoBufferPos], &FP.Config)
+	b := FP.UndoBuffer[FP.UndoBufferPos]
+
+	if !FP.Config.DisableGzipCompressionInUndoBuffer {
+		var err error
+
+		b, err = decompress(b)
+		if err != nil {
+			FP.ProfileStatusText.SetText(fmt.Sprintf(
+				"%v%v%v",
+				FP.Colors["ProfileStatusTextError"],
+				FP.T["UndoBufferConfigCompressionError"],
+				c.Reset,
+			))
+		}
+	}
+
+	err := yaml.Unmarshal(b, &FP.Config)
 	if err != nil {
 		FP.ProfileStatusText.SetText(fmt.Sprintf(
 			"%v%v%v",
@@ -28,11 +67,11 @@ func pushUndoBufferChange() {
 			c.Reset,
 		))
 	}
-
 	// set the FP.SelectedProfile to the latest FP.UndoBuffer's config
 	for i := range FP.Config.Profiles {
 		if FP.Config.Profiles[i].Name == n {
 			FP.SelectedProfile = &(FP.Config.Profiles[i])
+			return
 		}
 	}
 }
@@ -58,7 +97,7 @@ func undo() {
 
 	FP.UndoBufferPos = newUndoBufferPos
 
-	pushUndoBufferChange()
+	pushUndoBufferChangeToConfig()
 
 	FP.ProfileStatusText.SetText(fmt.Sprintf(
 		"%v%v: [%v/%v]%v",
@@ -97,7 +136,7 @@ func redo() {
 
 	FP.UndoBufferPos = newUndoBufferPos
 
-	pushUndoBufferChange()
+	pushUndoBufferChangeToConfig()
 
 	FP.ProfileStatusText.SetText(fmt.Sprintf(
 		"%v%v: [%v/%v]%v",
@@ -117,15 +156,18 @@ func redo() {
 // Uses gzip to compress bytes.
 func compress(input []byte) ([]byte, error) {
 	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
 
-	if _, err := gz.Write(input); err != nil {
+	w, err := flate.NewWriter(&b, 9) // TODO: make this 9 value configurable
+	if err != nil {
 		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferCompressionWriteError"], err)
 	}
 
-	if err := gz.Close(); err != nil {
-		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferCompressionCloseError"], err)
+	_, err = w.Write(input)
+	if err != nil {
+		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferCompressionWriteError"], err)
 	}
+
+	w.Close()
 
 	return b.Bytes(), nil
 }
@@ -134,20 +176,17 @@ func compress(input []byte) ([]byte, error) {
 func decompress(input []byte) ([]byte, error) {
 	var b bytes.Buffer
 
-	gz, err := gzip.NewReader(&b)
+	b.Write(input)
+
+	r := flate.NewReader(&b)
+	defer r.Close()
+
+	data, err := io.ReadAll(r)
 	if err != nil {
-		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferDecompressionReaderInitError"], err)
+		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferCompressionWriteError"], err)
 	}
 
-	if _, err := gz.Read(input); err != nil {
-		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferDecompressionWriteError"], err)
-	}
-
-	if err := gz.Close(); err != nil {
-		return []byte{}, fmt.Errorf("%v: %w", FP.T["UndoBufferDecompressionCloseError"], err)
-	}
-
-	return b.Bytes(), nil
+	return data, nil
 }
 
 // attempts to place the current config at FP.UndoBuffer[FP.UndoBufferPos+1] but
@@ -199,7 +238,10 @@ func modified() {
 			}
 		}
 
-		if string(bo) == string(b) {
+		sbo := string(bo)
+		sb := string(b)
+
+		if sbo == sb {
 			// no difference between this config and previous one
 			FP.ProfileStatusText.SetText(fmt.Sprintf(
 				"%v%v [%v/%v]%v",
@@ -261,7 +303,7 @@ func modified() {
 
 	// TODO: restrict the length of the buffer based on the configured max
 
-	pushUndoBufferChange()
+	pushUndoBufferChangeToConfig()
 	FP.ProfileStatusText.SetText(fmt.Sprintf(
 		"%v%v*%v[%v/%v %vkB]%v",
 		FP.Colors["ProfileStatusTextModifiedMarker"],

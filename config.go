@@ -66,6 +66,8 @@ func loadConfig(file string, t map[string]string) (m.Config, string, error) {
 
 	if err == nil && file != "" {
 		return conf, file, err
+	} else if err != nil {
+		return conf, file, err
 	}
 
 	xdgConfig := path.Join(xdg.ConfigHome, c.DefaultConfigParentDir, c.DefaultConfig)
@@ -80,10 +82,32 @@ func loadConfig(file string, t map[string]string) (m.Config, string, error) {
 	conf, file, err = loadConfFrom(xdgHome, t)
 	if err == nil && file != "" {
 		return conf, file, err
+	} else if err != nil {
+		return conf, file, err
 	}
 
 	// if the config file doesn't exist, create it at xdgConfig
 	return conf, xdgConfig, err
+}
+
+// processConfig applies any post-load configuration parameters/logic to ensure
+// that data is valid & consistent. Use it after loadConfig.
+func processConfig(conf *m.Config) {
+	if conf == nil {
+		log.Fatalf("config is nil")
+	}
+
+	// ensure that every transaction has its weekdays map properly populated
+	for i := 0; i < 7; i++ {
+		for j := range conf.Profiles {
+			for k := range conf.Profiles[j].TX {
+				_, ok := conf.Profiles[j].TX[k].Weekdays[i]
+				if !ok {
+					conf.Profiles[j].TX[k].Weekdays[i] = false
+				}
+			}
+		}
+	}
 }
 
 // converts a json file to yaml (one-off job for converting from legacy versions

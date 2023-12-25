@@ -24,6 +24,7 @@ func actionRedo(e *tcell.EventKey) *tcell.EventKey {
 			return e
 		case FP.TransactionsTable:
 			redo()
+
 			return nil
 		default:
 			return e
@@ -44,6 +45,7 @@ func actionUndo(e *tcell.EventKey) *tcell.EventKey {
 			return e
 		case FP.TransactionsTable:
 			undo()
+
 			return nil
 		default:
 			return e
@@ -57,6 +59,7 @@ func actionUndo(e *tcell.EventKey) *tcell.EventKey {
 
 func actionQuit() *tcell.EventKey {
 	promptExit()
+
 	return nil
 }
 
@@ -73,6 +76,7 @@ func actionMove(e *tcell.EventKey) *tcell.EventKey {
 			// row, then highlight the correct row
 			if FP.SortTX != c.None && FP.SortTX != "" {
 				FP.ProfileStatusText.SetText(fmt.Sprintf("[orange]sort: %v", FP.SortTX))
+
 				return nil
 			}
 
@@ -89,6 +93,7 @@ func actionMove(e *tcell.EventKey) *tcell.EventKey {
 
 			if !anySelected {
 				FP.ProfileStatusText.SetText("[gray]nothing to move")
+
 				return nil
 			}
 
@@ -934,7 +939,9 @@ func actionHelp(e *tcell.EventKey) *tcell.EventKey {
 
 // action is the primary decision tree that is triggered when a key event
 // is triggered. Please ensure that every case statement has a return or
-// fallthrough, and note that the "nolint" for this function is required
+// fallthrough
+//
+// Note that the "nolint" for this function is required
 // because there is really no way to make it any simpler without silliness.
 //
 //nolint:funlen,cyclop

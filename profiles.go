@@ -79,6 +79,7 @@ func getProfilesPage() *tview.Flex {
 	))
 
 	FP.TransactionsSortMap = getTransactionsSortMap()
+
 	FP.WeekdaysMap = getWeekdaysMap()
 
 	populateProfilesPage()

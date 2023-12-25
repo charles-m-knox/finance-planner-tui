@@ -59,6 +59,16 @@ UndoBufferConfigCompressionError: failed to compress config before adding to und
 UndoBufferConfigDecompressionError: failed to decompress the previously stored config from undo buffer
 
 TransactionsInputFieldPlaceholderLabel: editor appears here when editing
+TransactionsInputFieldEditAmountLabel: "amount (start with + or $+ for positive)"
+TransactionsInputFieldEditNameLabel: edit name
+TransactionsInputFieldEditNoteLabel: edit note
+TransactionsInputFieldInvalidIntervalGivenLabel: invalid interval given
+TransactionsInputFieldInvalidDateGivenLabelY: invalid year given
+TransactionsInputFieldInvalidDateGivenLabelM: invalid month given
+TransactionsInputFieldInvalidDateGivenLabelD: invalid day given
+TransactionsInputFieldYearPromptLabel: year (0 or YYYY)
+TransactionsInputFieldMonthPromptLabel: month (0 or 1-12)
+TransactionsInputFieldDayPromptLabel: day (0 or 1-31)
 
 TransactionsTableTitle: Transactions
 

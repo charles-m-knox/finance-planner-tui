@@ -8,7 +8,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 22
           startsMonth: 12
           startsYear: 2023
@@ -26,7 +33,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 1
           startsMonth: 1
           startsYear: 2024
@@ -44,7 +58,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 1
           startsMonth: 1
           startsYear: 2024
@@ -62,7 +83,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 1
           startsMonth: 1
           startsYear: 2024
@@ -80,7 +108,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 1
           startsYear: 2024
@@ -98,7 +133,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 1
           startsYear: 2024
@@ -116,7 +158,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 2
           startsYear: 2024
@@ -134,7 +183,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 3
           startsYear: 2024
@@ -152,7 +208,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 4
           startsYear: 2024
@@ -170,7 +233,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 5
           startsYear: 2024
@@ -188,7 +258,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 6
           startsYear: 2024
@@ -206,7 +283,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 7
           startsYear: 2024
@@ -224,7 +308,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 8
           startsYear: 2024
@@ -242,7 +333,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 9
           startsYear: 2024
@@ -260,7 +358,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 10
           startsYear: 2024
@@ -278,7 +383,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 11
           startsYear: 2024
@@ -296,7 +408,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 12
           startsYear: 2024
@@ -314,7 +433,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 1
           startsYear: 2024
@@ -332,7 +458,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 2
           startsYear: 2024
@@ -350,7 +483,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 3
           startsYear: 2024
@@ -368,7 +508,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 4
           startsYear: 2024
@@ -386,7 +533,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 5
           startsYear: 2024
@@ -404,7 +558,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 6
           startsYear: 2024
@@ -422,7 +583,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 7
           startsYear: 2024
@@ -440,7 +608,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 8
           startsYear: 2024
@@ -458,7 +633,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 9
           startsYear: 2024
@@ -476,7 +658,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 10
           startsYear: 2024
@@ -494,7 +683,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 11
           startsYear: 2024
@@ -512,7 +708,14 @@ profiles:
           rrule: ""
           frequency: YEARLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 12
           startsYear: 2024
@@ -531,13 +734,13 @@ profiles:
           frequency: WEEKLY
           interval: 1
           weekdays:
-            - 0
-            - 1
-            - 2
-            - 3
-            - 4
-            - 5
-            - 6
+            0: true
+            1: true
+            2: true
+            3: true
+            4: true
+            5: true
+            6: true
           startsDay: 22
           startsMonth: 12
           startsYear: 2023
@@ -555,7 +758,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 1
           startsMonth: 12
           startsYear: 2023
@@ -573,7 +783,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 15
           startsMonth: 12
           startsYear: 2023
@@ -591,7 +808,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 23
           startsMonth: 12
           startsYear: 2023
@@ -609,7 +833,14 @@ profiles:
           rrule: ""
           frequency: MONTHLY
           interval: 1
-          weekdays: []
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
           startsDay: 22
           startsMonth: 12
           startsYear: 2023
@@ -632,4 +863,6 @@ profiles:
       endYear: "2024"
 undoBufferMaxLength: 0
 version: "1"
+theme: ""
 disableResultsStatusMessages: false
+disableGzipCompressionInUndoBuffer: false

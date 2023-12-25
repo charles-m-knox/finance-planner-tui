@@ -2,6 +2,11 @@
 
 TODO:
 
+
+- IMPORTANT: Fix compression&decompression issues in undo buffer
+- fix no sorting for Note  column
+- weekday sorting only sorts for Monday
+- when hitting Enter on a row, if there are other things selected, also select this row
 - change all refs to c.Reset to tcell.ColorReset
 - debug config.yml loading errors
 - create xdg config dir when loading configs

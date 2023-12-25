@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -112,12 +111,10 @@ type (
 	TxSortChooserFunc func(bool) TxSortFunc
 )
 
-// weekday sort functions
-
-func sortWeekday(weekdays map[string]int, day string, asc bool) TxSortFunc {
+func sortWeekday(day int, asc bool) TxSortFunc {
 	return func(ti, tj lib.TX) bool {
-		tiw := slices.Index(ti.Weekdays, weekdays[day]) != -1
-		tjw := slices.Index(tj.Weekdays, weekdays[day]) != -1
+		tiw := ti.Weekdays[day]
+		tjw := tj.Weekdays[day]
 
 		if asc {
 			if tiw == tjw {
@@ -355,13 +352,13 @@ type TransactionsColumn struct {
 // Returns an ordered list of the columns that will be shown in the transactions
 // table, as well as their sort functions.
 func getTransactionsColumns() map[string]TransactionsColumn {
-	mo := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnMonday"], b) }
-	tu := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnTuesday"], b) }
-	we := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnWednesday"], b) }
-	th := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnThursday"], b) }
-	fr := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnFriday"], b) }
-	sa := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnSaturday"], b) }
-	su := func(b bool) TxSortFunc { return sortWeekday(FP.WeekdaysMap, FP.T["TransactionsColumnSunday"], b) }
+	mo := func(b bool) TxSortFunc { return sortWeekday(rrule.MO.Day(), b) }
+	tu := func(b bool) TxSortFunc { return sortWeekday(rrule.TU.Day(), b) }
+	we := func(b bool) TxSortFunc { return sortWeekday(rrule.WE.Day(), b) }
+	th := func(b bool) TxSortFunc { return sortWeekday(rrule.TH.Day(), b) }
+	fr := func(b bool) TxSortFunc { return sortWeekday(rrule.FR.Day(), b) }
+	sa := func(b bool) TxSortFunc { return sortWeekday(rrule.SA.Day(), b) }
+	su := func(b bool) TxSortFunc { return sortWeekday(rrule.SU.Day(), b) }
 
 	return map[string]TransactionsColumn{
 		FP.T["TransactionsColumnAmount"]:    {SortFunc: sortAmount},
@@ -489,21 +486,21 @@ func getTransactionsTableCell(tx lib.TX) []models.TableCell {
 
 	if !tx.Active {
 		active = ""
-		cAmount = FP.T["TransactionsInactive"]
-		cActive = FP.T["TransactionsInactive"]
-		cName = FP.T["TransactionsInactive"]
-		cFrequency = FP.T["TransactionsInactive"]
-		cInterval = FP.T["TransactionsInactive"]
-		cMonday = FP.T["TransactionsInactive"]
-		cTuesday = FP.T["TransactionsInactive"]
-		cWednesday = FP.T["TransactionsInactive"]
-		cThursday = FP.T["TransactionsInactive"]
-		cFriday = FP.T["TransactionsInactive"]
-		cSaturday = FP.T["TransactionsInactive"]
-		cSunday = FP.T["TransactionsInactive"]
-		cStarts = FP.T["TransactionsInactive"]
-		cEnds = FP.T["TransactionsInactive"]
-		cNote = FP.T["TransactionsInactive"]
+		cAmount = FP.Colors["TransactionsInactive"]
+		cActive = FP.Colors["TransactionsInactive"]
+		cName = FP.Colors["TransactionsInactive"]
+		cFrequency = FP.Colors["TransactionsInactive"]
+		cInterval = FP.Colors["TransactionsInactive"]
+		cMonday = FP.Colors["TransactionsInactive"]
+		cTuesday = FP.Colors["TransactionsInactive"]
+		cWednesday = FP.Colors["TransactionsInactive"]
+		cThursday = FP.Colors["TransactionsInactive"]
+		cFriday = FP.Colors["TransactionsInactive"]
+		cSaturday = FP.Colors["TransactionsInactive"]
+		cSunday = FP.Colors["TransactionsInactive"]
+		cStarts = FP.Colors["TransactionsInactive"]
+		cEnds = FP.Colors["TransactionsInactive"]
+		cNote = FP.Colors["TransactionsInactive"]
 	} else { //nolint:gocritic // <-- intentionally structured like this
 		if tx.Amount >= 0 {
 			cAmount = FP.Colors["TransactionsAmountPositive"]
@@ -533,9 +530,7 @@ func getTransactionsTableCell(tx lib.TX) []models.TableCell {
 
 // Constructs and sets the columns for the first row in the transactions table.
 // Unsafe to run repeatedly and does not clear any existing fields/data.
-func setTransactionsTableHeaders(currentSort, sortGlyph string) {
-	th := getTransactionsTableHeaders()
-
+func setTransactionsTableHeaders(th []models.TableCell, currentSort, sortGlyph string) {
 	for i := range th {
 		g := ""
 		if currentSort == th[i].Text {
@@ -595,7 +590,10 @@ func getTransactionsTable() {
 	FP.TransactionsTable.Clear()
 
 	currentSort, sortGlyph := getSort(FP.SortTX)
-	setTransactionsTableHeaders(currentSort, sortGlyph)
+
+	FP.TransactionsTableHeaders = getTransactionsTableHeaders()
+
+	setTransactionsTableHeaders(FP.TransactionsTableHeaders, currentSort, sortGlyph)
 
 	FP.TransactionsTable.SetTitle(FP.T["TransactionsTableTitle"])
 	FP.TransactionsTable.SetBorders(false).
@@ -608,18 +606,393 @@ func getTransactionsTable() {
 
 	sortTX(FP.TransactionsSortMap)
 
-	// start by populating the table with the columns first
 	for i := range FP.SelectedProfile.TX {
 		setTransactionsTableCellsForTransaction(i+1, FP.SelectedProfile.TX[i], FP.LastSelection == i)
 	}
 
-	FP.TransactionsTable.SetSelectedFunc(transactionsTableSelectionChanged)
+	FP.TransactionsTable.SetSelectedFunc(transactionsTableSelectedFunc)
 }
 
-// This is basically a callback function that is executed when the transactions
-// table's selection is changed.
-func transactionsTableSelectionChanged(row, column int) {
-	// get the current profile & transaction
+// First, prompt for the year. Then, prompt for month. Then, prompt for day.
+//
+// If start is false, this will modify the end date; otherwise, it modifies the
+// start date.
+func txChangeDate(i int, start bool) {
+	const (
+		Y = "Y"
+		M = "M"
+		D = "D"
+	)
+
+	// helps get rid of some boilerplate (but not all)
+	fnc := func(yrMoDay string, f func()) func(key tcell.Key) {
+		return func(key tcell.Key) {
+			switch key {
+			case tcell.KeyEscape:
+				// don't save the changes
+				deactivateTransactionsInputField()
+
+				return
+			default:
+				v, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
+				valid := false
+
+				// This is a dynamic method of setting the value of the selected
+				// TX's start/end yr/mo/day.
+				var field *int
+
+				switch yrMoDay {
+				case Y:
+					valid = v >= 0
+
+					if start {
+						field = &(FP.SelectedProfile.TX[i].StartsYear)
+					} else {
+						field = &(FP.SelectedProfile.TX[i].EndsYear)
+					}
+				case M:
+					valid = v >= 0 && v <= 12
+
+					if start {
+						field = &(FP.SelectedProfile.TX[i].StartsMonth)
+					} else {
+						field = &(FP.SelectedProfile.TX[i].EndsMonth)
+					}
+				case D:
+					valid = v >= 0 && v <= 31
+
+					if start {
+						field = &(FP.SelectedProfile.TX[i].StartsDay)
+					} else {
+						field = &(FP.SelectedProfile.TX[i].EndsDay)
+					}
+				}
+
+				if err != nil || !valid {
+					// start over
+					activateTransactionsInputFieldNoAutocompleteReset(
+						FP.T[fmt.Sprintf("TransactionsInputFieldInvalidDateGivenLabel%v", yrMoDay)],
+						strconv.Itoa(*field),
+					)
+
+					return
+				}
+
+				// FP.SelectedProfile.TX[i].StartsYear = int(d)
+				*field = int(v)
+
+				for j := range FP.SelectedProfile.TX {
+					if FP.SelectedProfile.TX[j].Selected || j == i {
+						var jField *int
+
+						switch yrMoDay {
+						case Y:
+							if start {
+								jField = &(FP.SelectedProfile.TX[j].StartsYear)
+							} else {
+								jField = &(FP.SelectedProfile.TX[j].EndsYear)
+							}
+						case M:
+							if start {
+								jField = &(FP.SelectedProfile.TX[j].StartsMonth)
+							} else {
+								jField = &(FP.SelectedProfile.TX[j].EndsMonth)
+							}
+						case D:
+							if start {
+								jField = &(FP.SelectedProfile.TX[j].StartsDay)
+							} else {
+								jField = &(FP.SelectedProfile.TX[j].EndsDay)
+							}
+						}
+
+						*jField = *field
+					}
+				}
+
+				modified()
+				deactivateTransactionsInputField()
+
+				f()
+			}
+		}
+	}
+
+	dayFunc := func() {
+		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {})
+	}
+
+	monthFunc := func() {
+		FP.TransactionsInputField.SetDoneFunc(fnc(D, dayFunc))
+
+		var m string
+
+		if start {
+			m = strconv.Itoa(FP.SelectedProfile.TX[i].StartsDay)
+		} else {
+			m = strconv.Itoa(FP.SelectedProfile.TX[i].EndsDay)
+		}
+
+		activateTransactionsInputFieldNoAutocompleteReset(fmt.Sprintf(
+			"%v:", FP.T["TransactionsInputFieldDayPromptLabel"],
+		), m)
+	}
+
+	yearFunc := func() {
+		FP.TransactionsInputField.SetDoneFunc(fnc(M, monthFunc))
+
+		var m string
+
+		if start {
+			m = strconv.Itoa(FP.SelectedProfile.TX[i].StartsMonth)
+		} else {
+			m = strconv.Itoa(FP.SelectedProfile.TX[i].EndsMonth)
+		}
+
+		activateTransactionsInputFieldNoAutocompleteReset(fmt.Sprintf(
+			"%v:", FP.T["TransactionsInputFieldMonthPromptLabel"],
+		), m)
+	}
+
+	var m string
+
+	if start {
+		m = strconv.Itoa(FP.SelectedProfile.TX[i].StartsYear)
+	} else {
+		m = strconv.Itoa(FP.SelectedProfile.TX[i].EndsYear)
+	}
+
+	activateTransactionsInputField(fmt.Sprintf("%v:", FP.T["TransactionsInputFieldYearPromptLabel"]), m)
+
+	FP.TransactionsInputField.SetDoneFunc(fnc(Y, yearFunc))
+}
+
+// TODO: translate these.
+// TODO: map colors, if any are used
+func txChangeFrequency(i int) {
+	activateTransactionsInputField("weekly|monthly|yearly:", FP.SelectedProfile.TX[i].Frequency)
+
+	saveFunc := func(newValue string) {
+		validatedFrequency := strings.TrimSpace(strings.ToUpper(newValue))
+		switch validatedFrequency {
+		case c.WEEKLY:
+			fallthrough
+		case c.MONTHLY:
+			fallthrough
+		case c.YEARLY:
+			break
+		default:
+			FP.TransactionsInputField.SetLabel("invalid value - can only be weekly, monthly, or yearly:")
+
+			return
+		}
+
+		FP.SelectedProfile.TX[i].Frequency = validatedFrequency
+
+		// update all selected values as well as the current one
+		for j := range FP.SelectedProfile.TX {
+			if FP.SelectedProfile.TX[j].Selected || j == i {
+				FP.SelectedProfile.TX[j].Frequency = FP.SelectedProfile.TX[i].Frequency
+			}
+		}
+
+		modified()
+	}
+
+	FP.TransactionsInputField.SetAutocompleteFunc(func(currentText string) []string {
+		return fuzzy.Find(strings.TrimSpace(strings.ToUpper(currentText)), []string{
+			c.MONTHLY,
+			c.YEARLY,
+			c.WEEKLY,
+		})
+	})
+
+	FP.TransactionsInputField.SetAutocompletedFunc(func(text string, index, source int) bool {
+		saveFunc(text)
+		deactivateTransactionsInputField()
+
+		return true
+	})
+
+	FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEscape:
+			break
+		default:
+			saveFunc(FP.TransactionsInputField.GetText())
+		}
+		deactivateTransactionsInputField()
+	})
+}
+
+// See txChangeDoneFunc.
+type TxChangeDoneFunc func(i int, newVal string, key tcell.Key) bool
+
+// txChangeDoneFunc is a generalized function. When the user is finished
+// entering data into the transactions input field, only four keys are supported
+// by tview - enter, backtab, tab, and escape. In most cases, the
+// tab+backtab+enter keys are all used as "affirmative" keys and the escape key
+// is treated as the "cancel" signal.
+//
+// When the above conditions are desirable, this function is meant to be passed
+// as the transactions input field "done" handler.
+func txChangeDoneFunc(i int, f func(ii int, newVal string) bool) func(tcell.Key) {
+	return func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEscape:
+			break
+		default:
+			if f(i, FP.TransactionsInputField.GetText()) {
+				modified()
+			} else {
+				return // don't drop focus - the user entered invalid input
+			}
+		}
+
+		deactivateTransactionsInputField()
+	}
+}
+
+// Updates all selected values as well as the current one. The "i" parameter
+// is the current TX to modify, used as FP.SelectedProfile.TX[i]. Pass in
+// a currency-formatted string, straight from the transactions input field.
+//
+// "amt" must be a string.
+func txSetAmount(i int, amt string) bool {
+	a := int(lib.ParseDollarAmount(amt, false))
+
+	for j := range FP.SelectedProfile.TX {
+		if FP.SelectedProfile.TX[j].Selected || j == i {
+			FP.SelectedProfile.TX[j].Amount = a
+		}
+	}
+
+	return true
+}
+
+// txChangeAmount is the callback that gets executed when the user changes the
+// Amount field in the transactions table. The "i" parameter is the index of the
+// currently selected transaction, for example:
+//
+// FP.SelectedProfile.TX[i].Amount.
+func txChangeAmount(i int) {
+	FP.TransactionsInputField.SetDoneFunc(txChangeDoneFunc(i, txSetAmount))
+
+	renderedAmount := lib.FormatAsCurrency(FP.SelectedProfile.TX[i].Amount)
+	if FP.SelectedProfile.TX[i].Amount >= 0 {
+		renderedAmount = fmt.Sprintf("+%v", renderedAmount)
+	}
+
+	activateTransactionsInputField(
+		fmt.Sprintf("%v:", FP.T["TransactionsInputFieldEditAmountLabel"]),
+		renderedAmount,
+	)
+}
+
+func txSetActive(i int) bool {
+	FP.SelectedProfile.TX[i].Active = !FP.SelectedProfile.TX[i].Active
+
+	for j := range FP.SelectedProfile.TX {
+		if !FP.SelectedProfile.TX[j].Selected {
+			continue
+		}
+
+		FP.SelectedProfile.TX[j].Active = FP.SelectedProfile.TX[i].Active
+	}
+
+	return true
+}
+
+func txSetWeekday(i int, w int) bool {
+	FP.SelectedProfile.TX[i].Weekdays[w] = !FP.SelectedProfile.TX[i].Weekdays[w]
+
+	for j := range FP.SelectedProfile.TX {
+		if !FP.SelectedProfile.TX[j].Selected {
+			continue
+		}
+
+		FP.SelectedProfile.TX[j].Weekdays[w] = FP.SelectedProfile.TX[i].Weekdays[w]
+	}
+
+	return true
+}
+
+func txSetName(i int, name string) bool {
+	for j := range FP.SelectedProfile.TX {
+		if FP.SelectedProfile.TX[j].Selected || j == i {
+			FP.SelectedProfile.TX[j].Name = name
+		}
+	}
+
+	return true
+}
+
+func txChangeName(i int) {
+	FP.TransactionsInputField.SetDoneFunc(txChangeDoneFunc(i, txSetName))
+
+	activateTransactionsInputField(
+		fmt.Sprintf("%v:", FP.T["TransactionsInputFieldEditNameLabel"]),
+		FP.SelectedProfile.TX[i].Name,
+	)
+}
+
+func txSetNote(i int, note string) bool {
+	for j := range FP.SelectedProfile.TX {
+		if FP.SelectedProfile.TX[j].Selected || j == i {
+			FP.SelectedProfile.TX[j].Note = note
+		}
+	}
+
+	return true
+}
+
+func txChangeNote(i int) {
+	FP.TransactionsInputField.SetDoneFunc(txChangeDoneFunc(i, txSetNote))
+
+	activateTransactionsInputField(
+		fmt.Sprintf("%v:", FP.T["TransactionsInputFieldEditNoteLabel"]),
+		FP.SelectedProfile.TX[i].Note,
+	)
+}
+
+func txSetInterval(i int, interval string) bool {
+	d, err := strconv.ParseInt(interval, 10, 64)
+	if err != nil || d < 0 {
+		activateTransactionsInputFieldNoAutocompleteReset(
+			fmt.Sprintf("%v:", FP.T["TransactionsInputFieldInvalidIntervalGivenLabel"]),
+			strconv.Itoa(FP.SelectedProfile.TX[i].Interval),
+		)
+
+		return false
+	}
+
+	FP.SelectedProfile.TX[i].Interval = int(d)
+
+	for j := range FP.SelectedProfile.TX {
+		if !FP.SelectedProfile.TX[j].Selected {
+			continue
+		}
+
+		FP.SelectedProfile.TX[j].Interval = FP.SelectedProfile.TX[i].Interval
+	}
+
+	return true
+}
+
+func txChangeInterval(i int) {
+	FP.TransactionsInputField.SetDoneFunc(txChangeDoneFunc(i, txSetInterval))
+
+	activateTransactionsInputField(
+		fmt.Sprintf("%v:", FP.T["TransactionsInputFieldEditIntervalLabel"]),
+		strconv.Itoa(FP.SelectedProfile.TX[i].Interval),
+	)
+}
+
+// This is basically a callback function that is executed when the user hits
+// the enter key on a cell in the transactions table.
+//
+//nolint:funlen,cyclop
+func transactionsTableSelectedFunc(row, column int) {
 	i := 0
 
 	// based on the row, find the actual transaction definition
@@ -633,699 +1006,54 @@ func transactionsTableSelectionChanged(row, column int) {
 		}
 	}
 
-	switch column {
-	// case c.COLUMN_ORDER:
-	// 	if row == 0 {
-	// 		setTransactionsTableSort(c.ColumnOrder)
-	// 		return
-	// 	}
-	// 	FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
-	// 		switch key {
-	// 		case tcell.KeyEscape:
-	// 			// don't save the changes
-	// 			deactivateTransactionsInputField()
-	// 			return
-	// 		default:
-	// 			d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-	// 			if err != nil || d < 1 {
-	// 				activateTransactionsInputFieldNoAutocompleteReset("invalid order given:", fmt.Sprint(FP.SelectedProfile.TX[i].Order))
-	// 				return
-	// 			}
-
-	// 			// update all selected values as well as the current one
-	// 			for j := range FP.SelectedProfile.TX {
-	// 				if FP.SelectedProfile.TX[j].Selected || j == i {
-	// 					FP.SelectedProfile.TX[j].Order = int(d)
-	// 					FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-	// 						"%v%v",
-	// 						c.COLOR_COLUMN_ORDER,
-	// 						FP.SelectedProfile.TX[j].Order,
-	// 					))
-	// 				}
-	// 			}
-
-	// 			modified()
-	// 			deactivateTransactionsInputField()
-	// 		}
-	// 	})
-	// 	activateTransactionsInputField("order:", fmt.Sprint(FP.SelectedProfile.TX[i].Order))
-	case c.ColumnAmountIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnAmount)
-
-			return
-		}
-
-		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-
-				return
-			default:
-				a := lib.ParseDollarAmount(FP.TransactionsInputField.GetText(), false)
-				isPositiveAmount := a >= 0
-				amountColor := c.ColorColumnAmount
-				if isPositiveAmount {
-					amountColor = c.ColorColumnAmountPositive
-				}
-
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].Amount = int(a)
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							amountColor,
-							lib.FormatAsCurrency(FP.SelectedProfile.TX[j].Amount),
-						))
-					}
-				}
-
-				modified()
-				deactivateTransactionsInputField()
-			}
-		})
-		renderedAmount := lib.FormatAsCurrency(FP.SelectedProfile.TX[i].Amount)
-		if FP.SelectedProfile.TX[i].Amount >= 0 {
-			renderedAmount = fmt.Sprintf("+%v", renderedAmount)
-		}
-		activateTransactionsInputField("amount (start with + or $+ for positive):", renderedAmount)
-	case c.ColumnActiveIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnActive)
-
-			return
-		}
-
-		newValue := !FP.SelectedProfile.TX[i].Active
-		FP.SelectedProfile.TX[i].Active = !FP.SelectedProfile.TX[i].Active
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				activeText := "✔"
-				if !newValue {
-					activeText = " "
-				}
-				FP.SelectedProfile.TX[j].Active = newValue
-
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnActive, activeText))
-			}
-		}
-
-		modified()
-	case c.ColumnNameIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnName)
-
-			return
-		}
-		activateTransactionsInputField("edit name:", FP.SelectedProfile.TX[i].Name)
-		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				break
-			default:
-				FP.SelectedProfile.TX[i].Name = FP.TransactionsInputField.GetText()
-
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].Name = FP.SelectedProfile.TX[i].Name
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnName, FP.SelectedProfile.TX[i].Name))
-					}
-				}
-
-				modified()
-			}
-			deactivateTransactionsInputField()
-		})
-	case c.ColumnFrequencyIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnFrequency)
-
-			return
-		}
-		activateTransactionsInputField("weekly|monthly|yearly:", FP.SelectedProfile.TX[i].Frequency)
-		saveFunc := func(newValue string) {
-			// save the changes
-			validatedFrequency := strings.TrimSpace(strings.ToUpper(newValue))
-			switch validatedFrequency {
-			case c.WEEKLY:
-				fallthrough
-			case c.MONTHLY:
-				fallthrough
-			case c.YEARLY:
-				break
-			default:
-				FP.TransactionsInputField.SetLabel("invalid value - can only be weekly, monthly, or yearly:")
-
-				return
-			}
-			FP.SelectedProfile.TX[i].Frequency = validatedFrequency
-
-			// update all selected values as well as the current one
-			for j := range FP.SelectedProfile.TX {
-				if FP.SelectedProfile.TX[j].Selected || j == i {
-					FP.SelectedProfile.TX[j].Frequency = FP.SelectedProfile.TX[i].Frequency
-					FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnFrequency, FP.SelectedProfile.TX[i].Frequency))
-				}
-			}
-
-			modified()
-		}
-		FP.TransactionsInputField.SetAutocompleteFunc(func(currentText string) (entries []string) {
-			return fuzzy.Find(strings.TrimSpace(strings.ToUpper(currentText)), []string{
-				c.MONTHLY,
-				c.YEARLY,
-				c.WEEKLY,
-			})
-		})
-		FP.TransactionsInputField.SetAutocompletedFunc(func(text string, index, source int) bool {
-			saveFunc(text)
-			deactivateTransactionsInputField()
-
-			return true
-		})
-		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				break
-			default:
-				saveFunc(FP.TransactionsInputField.GetText())
-			}
-			deactivateTransactionsInputField()
-		})
-	case c.ColumnIntervalIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnInterval)
-
-			return
-		}
-		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d < 0 {
-					activateTransactionsInputFieldNoAutocompleteReset(
-						"invalid interval given:",
-						strconv.Itoa(FP.SelectedProfile.TX[i].Interval),
-					)
-
-					return
-				}
-
-				FP.SelectedProfile.TX[i].Interval = int(d)
-
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].Interval = FP.SelectedProfile.TX[i].Interval
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnInterval,
-							FP.SelectedProfile.TX[i].Interval,
-						))
-					}
-				}
-
-				modified()
-				deactivateTransactionsInputField()
-			}
-		})
-		activateTransactionsInputField("interval:", strconv.Itoa(FP.SelectedProfile.TX[i].Interval))
-	case c.ColumnMondayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnMonday)
-
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayMondayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayMondayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayMondayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayMondayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnMonday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdayMondayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnMonday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnTuesdayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnTuesday)
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayTuesdayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayTuesdayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayTuesdayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayTuesdayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnTuesday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdayTuesdayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnTuesday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnWednesdayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnWednesday)
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayWednesdayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayWednesdayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayWednesdayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayWednesdayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnWednesday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdayWednesdayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnWednesday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnThursdayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnThursday)
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayThursdayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayThursdayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayThursdayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayThursdayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnThursday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdayThursdayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnThursday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnFridayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnFriday)
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayFridayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdayFridayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayFridayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdayFridayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnFriday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdayFridayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnFriday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnSaturdayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnSaturday)
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdaySaturdayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdaySaturdayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdaySaturdayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdaySaturdayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnSaturday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdaySaturdayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnSaturday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnSundayIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnSunday)
-			return
-		}
-
-		FP.SelectedProfile.TX[i].Weekdays = lib.ToggleDayFromWeekdays(FP.SelectedProfile.TX[i].Weekdays, c.WeekdaySundayInt)
-
-		dayIsPresent := slices.Contains(FP.SelectedProfile.TX[i].Weekdays, c.WeekdaySundayInt)
-
-		// update all selected values as well as the current one
-		for j := range FP.SelectedProfile.TX {
-			if FP.SelectedProfile.TX[j].Selected || j == i {
-				dayIndex := slices.Index(FP.SelectedProfile.TX[j].Weekdays, c.WeekdaySundayInt)
-				if dayIndex == -1 && dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = append(FP.SelectedProfile.TX[j].Weekdays, c.WeekdaySundayInt)
-				} else if dayIndex != -1 && !dayIsPresent {
-					FP.SelectedProfile.TX[j].Weekdays = slices.Delete(FP.SelectedProfile.TX[j].Weekdays, dayIndex, dayIndex+1)
-				}
-				sort.Ints(FP.SelectedProfile.TX[j].Weekdays)
-
-				cellText := fmt.Sprintf("%v✔", c.ColorColumnSunday)
-				if !FP.SelectedProfile.TX[j].HasWeekday(c.WeekdaySundayInt) {
-					cellText = "[white] "
-				}
-				FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnSunday, cellText))
-			}
-		}
-
-		modified()
-	case c.ColumnStartsIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnStarts)
-			return
-		}
-		// first, prompt for the year
-		// then, prompt for month
-		// then, prompt for day
-		dayFunc := func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d < 0 || d > 31 {
-					// start over
-					activateTransactionsInputFieldNoAutocompleteReset(
-						"invalid day given:",
-						strconv.Itoa(FP.SelectedProfile.TX[i].StartsDay),
-					)
-					return
-				}
-
-				FP.SelectedProfile.TX[i].StartsDay = int(d)
-
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].StartsDay = FP.SelectedProfile.TX[i].StartsDay
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnStarts,
-							FP.SelectedProfile.TX[j].GetStartDateString(),
-						))
-					}
-				}
-				modified()
-				deactivateTransactionsInputField()
-			}
-		}
-
-		monthFunc := func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d > 12 || d < 0 {
-					// start over
-					activateTransactionsInputFieldNoAutocompleteReset("invalid month given:", strconv.Itoa(FP.SelectedProfile.TX[i].StartsMonth))
-					return
-				}
-
-				FP.SelectedProfile.TX[i].StartsMonth = int(d)
-
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].StartsMonth = FP.SelectedProfile.TX[i].StartsMonth
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnStarts,
-							FP.SelectedProfile.TX[j].GetStartDateString(),
-						))
-					}
-				}
-
-				modified()
-				deactivateTransactionsInputField()
-				activateTransactionsInputFieldNoAutocompleteReset("day (1-31):", strconv.Itoa(FP.SelectedProfile.TX[i].StartsDay))
-				defer FP.TransactionsInputField.SetDoneFunc(dayFunc)
-			}
-		}
-
-		yearFunc := func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d < 0 {
-					// start over
-					activateTransactionsInputFieldNoAutocompleteReset("invalid year given:", strconv.Itoa(FP.SelectedProfile.TX[i].StartsYear))
-					return
-				}
-
-				FP.SelectedProfile.TX[i].StartsYear = int(d)
-
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].StartsYear = FP.SelectedProfile.TX[i].StartsYear
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnStarts,
-							FP.SelectedProfile.TX[j].GetStartDateString(),
-						))
-					}
-				}
-
-				modified()
-				deactivateTransactionsInputField()
-				activateTransactionsInputFieldNoAutocompleteReset("month (1-12):", strconv.Itoa(FP.SelectedProfile.TX[i].StartsMonth))
-				defer FP.TransactionsInputField.SetDoneFunc(monthFunc)
-			}
-		}
-
-		FP.TransactionsInputField.SetDoneFunc(yearFunc)
-		activateTransactionsInputField("year:", strconv.Itoa(FP.SelectedProfile.TX[i].StartsYear))
-	case c.ColumnEndsIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnEnds)
-			return
-		}
-		// first, prompt for the year
-		// then, prompt for month
-		// then, prompt for day
-		dayFunc := func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d < 0 || d > 31 {
-					// start over
-					activateTransactionsInputFieldNoAutocompleteReset("invalid day given:", strconv.Itoa(FP.SelectedProfile.TX[i].EndsDay))
-					return
-				}
-
-				FP.SelectedProfile.TX[i].EndsDay = int(d)
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].EndsDay = FP.SelectedProfile.TX[i].EndsDay
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnEnds,
-							FP.SelectedProfile.TX[j].GetEndsDateString(),
-						))
-					}
-				}
-				modified()
-				deactivateTransactionsInputField()
-			}
-		}
-
-		monthFunc := func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d > 12 || d < 0 {
-					// start over
-					activateTransactionsInputFieldNoAutocompleteReset("invalid month given:", strconv.Itoa(FP.SelectedProfile.TX[i].EndsMonth))
-					return
-				}
-
-				FP.SelectedProfile.TX[i].EndsMonth = int(d)
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].EndsMonth = FP.SelectedProfile.TX[i].EndsMonth
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnEnds,
-							FP.SelectedProfile.TX[j].GetEndsDateString(),
-						))
-					}
-				}
-				modified()
-				deactivateTransactionsInputField()
-				activateTransactionsInputFieldNoAutocompleteReset("day (1-31):", strconv.Itoa(FP.SelectedProfile.TX[i].EndsDay))
-				defer FP.TransactionsInputField.SetDoneFunc(dayFunc)
-			}
-		}
-
-		yearFunc := func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				// don't save the changes
-				deactivateTransactionsInputField()
-				return
-			default:
-				d, err := strconv.ParseInt(FP.TransactionsInputField.GetText(), 10, 64)
-				if err != nil || d < 0 {
-					// start over
-					activateTransactionsInputFieldNoAutocompleteReset("invalid year given:", strconv.Itoa(FP.SelectedProfile.TX[i].EndsYear))
-					return
-				}
-
-				FP.SelectedProfile.TX[i].EndsYear = int(d)
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].EndsYear = FP.SelectedProfile.TX[i].EndsYear
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf(
-							"%v%v",
-							c.ColorColumnEnds,
-							FP.SelectedProfile.TX[j].GetEndsDateString(),
-						))
-					}
-				}
-				modified()
-				deactivateTransactionsInputField()
-				activateTransactionsInputFieldNoAutocompleteReset("month (1-12):", strconv.Itoa(FP.SelectedProfile.TX[i].EndsMonth))
-				defer FP.TransactionsInputField.SetDoneFunc(monthFunc)
-			}
-		}
-
-		FP.TransactionsInputField.SetDoneFunc(yearFunc)
-		activateTransactionsInputField("year:", strconv.Itoa(FP.SelectedProfile.TX[i].EndsYear))
-	case c.ColumnNoteIndex:
-		if row == 0 {
-			setTransactionsTableSort(c.ColumnNote)
-			return
-		}
-		activateTransactionsInputField("edit note:", FP.SelectedProfile.TX[i].Note)
-		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {
-			switch key {
-			case tcell.KeyEscape:
-				break
-			default:
-				// save the changes
-				FP.SelectedProfile.TX[i].Note = FP.TransactionsInputField.GetText()
-				// update all selected values as well as the current one
-				for j := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[j].Selected || j == i {
-						FP.SelectedProfile.TX[j].Note = FP.SelectedProfile.TX[i].Note
-						FP.TransactionsTable.GetCell(j+1, column).SetText(fmt.Sprintf("%v%v", c.ColorColumnNote, FP.SelectedProfile.TX[j].Note))
-					}
-				}
-
-				modified()
-			}
-			deactivateTransactionsInputField()
-		})
-	case c.ColumnIDIndex:
-		// pass for now
-	case c.ColumnCreatedAtIndex:
-		// pass for now
-	case c.ColumnUpdatedAtIndex:
-		// pass for now
+	field := FP.TransactionsTableHeaders[column].Text
+
+	if row == 0 {
+		setTransactionsTableSort(field)
+
+		return
+	}
+
+	// Some actions do not contain a call to run modified() because they
+	// don't use the transactions input field.
+	var isModified bool
+
+	switch field {
+	case FP.T["TransactionsColumnAmount"]:
+		txChangeAmount(i)
+	case FP.T["TransactionsColumnActive"]:
+		isModified = txSetActive(i)
+	case FP.T["TransactionsColumnName"]:
+		txChangeName(i)
+	case FP.T["TransactionsColumnFrequency"]:
+		txChangeFrequency(i)
+	case FP.T["TransactionsColumnInterval"]:
+		txChangeInterval(i)
+	case FP.T["TransactionsColumnMonday"]:
+		isModified = txSetWeekday(i, rrule.MO.Day())
+	case FP.T["TransactionsColumnTuesday"]:
+		isModified = txSetWeekday(i, rrule.TU.Day())
+	case FP.T["TransactionsColumnWednesday"]:
+		isModified = txSetWeekday(i, rrule.WE.Day())
+	case FP.T["TransactionsColumnThursday"]:
+		isModified = txSetWeekday(i, rrule.TH.Day())
+	case FP.T["TransactionsColumnFriday"]:
+		isModified = txSetWeekday(i, rrule.FR.Day())
+	case FP.T["TransactionsColumnSaturday"]:
+		isModified = txSetWeekday(i, rrule.SA.Day())
+	case FP.T["TransactionsColumnSunday"]:
+		isModified = txSetWeekday(i, rrule.SU.Day())
+	case FP.T["TransactionsColumnStarts"]:
+		txChangeDate(i, true)
+	case FP.T["TransactionsColumnEnds"]:
+		txChangeDate(i, false)
+	case FP.T["TransactionsColumnNote"]:
+		txChangeNote(i)
 	default:
 		break
+	}
+
+	if isModified {
+		modified()
 	}
 }

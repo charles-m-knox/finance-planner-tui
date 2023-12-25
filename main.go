@@ -7,6 +7,7 @@ import (
 
 	c "finance-planner-tui/constants"
 	"finance-planner-tui/lib"
+	"finance-planner-tui/models"
 	m "finance-planner-tui/models"
 	"finance-planner-tui/themes"
 	"finance-planner-tui/translations"
@@ -180,6 +181,10 @@ type FinancePlanner struct {
 	// acceptable rrule.Weekday values (which regard Monday as the start of
 	// the week, instead of Sunday, which is what the Go standard lib does).
 	WeekdaysMap map[string]int
+
+	// All of the columns that will be shown in the transactions table. Loaded
+	// once at runtime with values from translation table.
+	TransactionsTableHeaders []models.TableCell
 }
 
 // FP contains all shared data in a global. Avoid using globals where possible,
@@ -253,8 +258,7 @@ func bootstrap(t map[string]string, conf m.Config) {
 	FP.KeyBindings = GetCombinedKeybindings(conf.Keybindings, c.DefaultMappings)
 	FP.ActionBindings = GetAllBoundActions(conf.Keybindings, c.DefaultMappings)
 
-	FP.UndoBuffer = [][]byte{b}
-	FP.UndoBufferPos = 0
+	initializeUndo(b, conf.DisableGzipCompressionInUndoBuffer)
 
 	FP.LastSelection = -1
 	FP.App = tview.NewApplication()
@@ -289,10 +293,10 @@ func bootstrap(t map[string]string, conf m.Config) {
 
 // parseFlags parses the command line flags, using t as the translation map.
 func parseFlags(t map[string]string) {
-	flag.StringVar(&(FP.FlagConfigFile), t["FlagConfigFileFlag"], "", t["FlagConfigFileDesc"])
-	flag.BoolVar(&(FP.FlagShouldMigrate), t["FlagShouldMigrateFlag"], false, t["FlagShouldMigrateDesc"])
+	flag.StringVar(&FP.FlagConfigFile, t["FlagConfigFileFlag"], "", t["FlagConfigFileDesc"])
+	flag.BoolVar(&FP.FlagShouldMigrate, t["FlagShouldMigrateFlag"], false, t["FlagShouldMigrateDesc"])
 	flag.BoolVar(&FP.FlagKeyboardEchoMode, t["FlagKeyboardEchoModeFlag"], false, t["FlagKeyboardEchoModeDesc"])
-	flag.StringVar(&FP.FlagTheme, t["FlagThemeDesc"], "", t["FlagThemeFlag"])
+	flag.StringVar(&FP.FlagTheme, t["FlagThemeFlag"], "", t[" FlagThemeDesc"])
 	flag.Parse()
 }
 
@@ -314,6 +318,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v: %v", FP.T["ErrorFailedToLoadConfig"], err.Error())
 	}
+
+	processConfig(&FP.Config)
 
 	theme := FP.Config.Theme
 	if FP.FlagTheme != "" {
