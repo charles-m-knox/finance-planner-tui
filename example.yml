@@ -4,7 +4,7 @@ profiles:
         - amount: -1500
           active: true
           name: Netflix
-          note: this is my netflix bill
+          note: ""
           rrule: ""
           frequency: MONTHLY
           interval: 1
@@ -26,7 +26,7 @@ profiles:
           createdAt: 2023-12-22T21:40:22.679120896-07:00
           updatedAt: 2023-12-22T21:40:22.679120896-07:00
           selected: false
-        - amount: -300000
+        - amount: -200000
           active: true
           name: Rent/Mortgage
           note: ""
@@ -726,19 +726,69 @@ profiles:
           createdAt: 2023-12-22T22:09:13.380957082-07:00
           updatedAt: 2023-12-22T22:09:13.380957082-07:00
           selected: false
+        - amount: -2000
+          active: true
+          name: Eat t/r
+          note: tuesday/thu food budget
+          rrule: ""
+          frequency: WEEKLY
+          interval: 1
+          weekdays:
+            0: false
+            1: true
+            2: false
+            3: true
+            4: false
+            5: false
+            6: false
+          startsDay: 22
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 767e0074-4a1f-47d3-9daa-750d32c73157
+          createdAt: 2023-12-29T17:44:21.14163406-07:00
+          updatedAt: 2023-12-29T17:44:21.14163406-07:00
+          selected: false
         - amount: -1000
           active: true
-          name: Eat
+          name: Eat m/w/f
           note: food budget of $10/day - i have to eat!
           rrule: ""
           frequency: WEEKLY
           interval: 1
           weekdays:
             0: true
-            1: true
+            1: false
             2: true
-            3: true
+            3: false
             4: true
+            5: false
+            6: false
+          startsDay: 22
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 9a2b6154-ee90-48c1-835d-ef3989b13bfa
+          createdAt: 2023-12-29T17:44:04.639802628-07:00
+          updatedAt: 2023-12-29T17:44:04.639802628-07:00
+          selected: false
+        - amount: -3000
+          active: true
+          name: Eat weekend
+          note: weekend food budget
+          rrule: ""
+          frequency: WEEKLY
+          interval: 1
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
             5: true
             6: true
           startsDay: 22
@@ -751,7 +801,7 @@ profiles:
           createdAt: 2023-12-22T22:49:50.827712617-07:00
           updatedAt: 2023-12-22T22:49:50.827712617-07:00
           selected: false
-        - amount: 100000
+        - amount: 200000
           active: true
           name: Paycheck 1
           note: end of month paycheck
@@ -776,10 +826,35 @@ profiles:
           createdAt: 2023-12-22T22:51:55.573309754-07:00
           updatedAt: 2023-12-22T22:51:55.573309754-07:00
           selected: false
-        - amount: 100000
+        - amount: 2000
+          active: true
+          name: birthday gift
+          note: i get some gifts for my birthday every year!
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
+          startsDay: 1
+          startsMonth: 1
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: e165c2c1-c69e-4b99-bde4-466e9d10810a
+          createdAt: 2023-12-29T17:45:58.488927159-07:00
+          updatedAt: 2023-12-29T17:45:58.488927159-07:00
+          selected: false
+        - amount: 200000
           active: true
           name: Paycheck 2
-          note: mid-month paycheck
+          note: mid-month paycheck - it looks like i was running low on money after 1 year, so i need to get a pay raise
           rrule: ""
           frequency: MONTHLY
           interval: 1
@@ -802,9 +877,9 @@ profiles:
           updatedAt: 2023-12-22T22:53:03.348865026-07:00
           selected: false
         - amount: -2000
-          active: true
+          active: false
           name: chatGPT
-          note: i just subscribed to chatGPT plus
+          note: cancel chatgpt subscription but keep track of it for later
           rrule: ""
           frequency: MONTHLY
           interval: 1
@@ -825,6 +900,81 @@ profiles:
           id: a9a12393-e2b7-454f-8463-2420cee178c5
           createdAt: 2023-12-23T08:14:54.50532504-07:00
           updatedAt: 2023-12-23T08:14:54.50532504-07:00
+          selected: false
+        - amount: -20000
+          active: true
+          name: holiday gift giving
+          note: every holiday, i have to budget for friends & family!
+          rrule: ""
+          frequency: YEARLY
+          interval: 1
+          weekdays:
+            0: false
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
+          startsDay: 25
+          startsMonth: 12
+          startsYear: 2023
+          endsDay: 0
+          endsMonth: 0
+          endsYear: 0
+          id: 242d819d-c921-4967-a5f0-02b99a45e784
+          createdAt: 2023-12-29T17:46:57.244754476-07:00
+          updatedAt: 2023-12-29T17:46:57.244754476-07:00
+          selected: false
+        - amount: -10000
+          active: true
+          name: pay off loan fast
+          note: every week, on monday, i want to pay a little extra towards my loan
+          rrule: ""
+          frequency: WEEKLY
+          interval: 1
+          weekdays:
+            0: true
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
+          startsDay: 1
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 29
+          endsMonth: 1
+          endsYear: 2025
+          id: 7a5de896-7979-46f2-b3e8-ab9f630b09d6
+          createdAt: 2023-12-29T17:49:04.741596662-07:00
+          updatedAt: 2023-12-29T17:49:04.741596662-07:00
+          selected: false
+        - amount: -10000
+          active: true
+          name: pay off loan 4 week
+          note: every fourth week, on monday, i want to pay a little extra towards my loan on top of my other payments
+          rrule: ""
+          frequency: WEEKLY
+          interval: 4
+          weekdays:
+            0: true
+            1: false
+            2: false
+            3: false
+            4: false
+            5: false
+            6: false
+          startsDay: 1
+          startsMonth: 1
+          startsYear: 2024
+          endsDay: 29
+          endsMonth: 1
+          endsYear: 2025
+          id: bc37b829-7fa1-4789-86ff-2211b6195673
+          createdAt: 2023-12-29T17:47:42.91247665-07:00
+          updatedAt: 2023-12-29T17:47:42.91247665-07:00
           selected: false
         - amount: -1500
           active: true
@@ -852,15 +1002,15 @@ profiles:
           updatedAt: 2023-12-22T22:53:55.621177084-07:00
           selected: false
       name: example
-      selectedRow: 1
-      selectedColumn: 2
+      selectedRow: 0
+      selectedColumn: 0
       startingBalance: $5,000.00
       startDay: "23"
       startMonth: "12"
       startYear: "2023"
-      endDay: "22"
-      endMonth: "12"
-      endYear: "2024"
+      endDay: "1"
+      endMonth: "1"
+      endYear: "2025"
 undoBufferMaxLength: 0
 version: "1"
 theme: ""

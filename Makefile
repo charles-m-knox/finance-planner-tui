@@ -33,8 +33,8 @@ build-mac-arm64: mkbuilddir
 
 build-mac-amd64: mkbuilddir
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=darwin go build -v -o $(BIN)-prod-darwin-amd64 -ldflags="-w -s -buildid=" -trimpath
-	rm -f $(BIN)-prod-darwin-arm64-compressed
-	upx --best -o ./$(BIN)-prod-darwin-arm64-compressed $(BIN)-prod-darwin-arm64
+	rm -f $(BIN)-prod-darwin-amd64-compressed
+	upx --best -o ./$(BIN)-prod-darwin-amd64-compressed $(BIN)-prod-darwin-amd64
 
 build-win-amd64: mkbuilddir
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=windows go build -v -o $(BIN)-prod-win-amd64 -ldflags="-w -s -buildid=" -trimpath
