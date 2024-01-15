@@ -7,7 +7,6 @@ import (
 
 	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
 	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/models"
 	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
 	"gitea.cmcode.dev/cmcode/finance-planner-tui/themes"
 	"gitea.cmcode.dev/cmcode/finance-planner-tui/translations"
@@ -184,7 +183,7 @@ type FinancePlanner struct {
 
 	// All of the columns that will be shown in the transactions table. Loaded
 	// once at runtime with values from translation table.
-	TransactionsTableHeaders []models.TableCell
+	TransactionsTableHeaders []m.TableCell
 }
 
 // FP contains all shared data in a global. Avoid using globals where possible,

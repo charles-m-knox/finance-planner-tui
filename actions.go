@@ -292,12 +292,14 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 				case tcell.KeyEscape:
 					// don't save the changes
 					deactivateTransactionsInputField()
+
 					return
 				default:
 					// validate that the name is unique
 					value := FP.TransactionsInputField.GetText()
 					if strings.Index(value, "delete ") != 0 {
 						FP.TransactionsInputField.SetLabel(getPrompt())
+
 						return
 					}
 
