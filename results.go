@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	c "finance-planner-tui/constants"
-	"finance-planner-tui/lib"
-	"finance-planner-tui/models"
+	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/models"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"

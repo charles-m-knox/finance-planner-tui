@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	c "finance-planner-tui/constants"
+	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
 
 	"github.com/google/uuid"
 	"github.com/teambition/rrule-go"

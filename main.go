@@ -5,12 +5,12 @@ import (
 	"flag"
 	"log"
 
-	c "finance-planner-tui/constants"
-	"finance-planner-tui/lib"
-	"finance-planner-tui/models"
-	m "finance-planner-tui/models"
-	"finance-planner-tui/themes"
-	"finance-planner-tui/translations"
+	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/themes"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/translations"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"

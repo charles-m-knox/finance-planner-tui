@@ -7,9 +7,9 @@ import (
 	"os"
 	"path"
 
-	c "finance-planner-tui/constants"
-	"finance-planner-tui/lib"
-	m "finance-planner-tui/models"
+	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
+	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
+	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
 
 	"github.com/adrg/xdg"
 	"github.com/google/uuid"

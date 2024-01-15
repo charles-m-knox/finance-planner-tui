@@ -1,4 +1,4 @@
-module finance-planner-tui
+module gitea.cmcode.dev/cmcode/finance-planner-tui
 
 go 1.21.5
 

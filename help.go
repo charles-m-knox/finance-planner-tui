@@ -9,8 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	c "finance-planner-tui/constants"
-	m "finance-planner-tui/models"
+	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
+	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
 
 	"github.com/rivo/tview"
 )

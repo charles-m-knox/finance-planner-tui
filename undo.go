@@ -7,7 +7,7 @@ import (
 	"io"
 	"slices"
 
-	c "finance-planner-tui/constants"
+	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
 
 	"gopkg.in/yaml.v3"
 )
