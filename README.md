@@ -105,3 +105,9 @@ Press F1 while in the application or `?` and use the up/down keys to view the ke
 - update help file to show actual keybindings
 - customize colors (later!)
 - fix issue on mac with showing black on black in results page
+
+## Warnings/disclaimers
+
+- This is not stable software.
+- Unit tests and other automated tests are not written yet.
+- As with many of my personal projects, the code in this project contains a lot of experimental approaches to writing software that I might not otherwise have taken in a professional/serious environment. Please do not judge it in that regard.

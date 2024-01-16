@@ -22,6 +22,9 @@ var AllTranslations embed.FS
 //go:embed themes/*.yml
 var AllThemes embed.FS
 
+//go:embed example.yml
+var ExampleConfig embed.FS
+
 const (
 	// PageProfiles is not shown to the user ever, and is only used in the code.
 	// Its primary purpose is for use in switch/case statements to determine the
@@ -313,7 +316,7 @@ func main() {
 		JSONtoYAML()
 	}
 
-	FP.Config, FP.FlagConfigFile, err = loadConfig(FP.FlagConfigFile, FP.T)
+	FP.Config, FP.FlagConfigFile, err = loadConfig(FP.FlagConfigFile, FP.T, ExampleConfig)
 	if err != nil {
 		log.Fatalf("%v: %v", FP.T["ErrorFailedToLoadConfig"], err.Error())
 	}

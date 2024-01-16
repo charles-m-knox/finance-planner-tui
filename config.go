@@ -1,7 +1,9 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -41,6 +43,36 @@ func loadConfFrom(file string, t map[string]string) (m.Config, string, error) {
 	return conf, file, nil
 }
 
+func loadConfFromEmbed(file string, emb embed.FS, t map[string]string) (m.Config, string, error) {
+	conf := m.Config{}
+
+	b, err := emb.ReadFile(file)
+	if err != nil {
+		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToLoadConfig"], file, err)
+	}
+
+	err = yaml.Unmarshal(b, &conf)
+
+	if err != nil {
+		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToUnmarshalConfig"], file, err)
+	}
+
+	return conf, file, nil
+}
+
+func fileExists(name string) (bool, error) {
+	_, err := os.Stat(name)
+	if err == nil {
+		return true, nil
+	}
+
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+
+	return false, err
+}
+
 // Attempts to load from the "file" path provided - if not successful,
 // attempts to load from xdg config, then xdg home.
 //
@@ -53,40 +85,84 @@ func loadConfFrom(file string, t map[string]string) (m.Config, string, error) {
 // value so that other logic can use it.
 //
 // The "t" parameter is the map of translations.
-func loadConfig(file string, t map[string]string) (m.Config, string, error) {
+func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Config, string, error) {
 	if file == "" {
 		file = c.DefaultConfig
 	}
 
 	var err error
 
+	var exists bool
+
 	var conf m.Config
 
-	conf, file, err = loadConfFrom(file, t)
+	// create the XDG config dir for this application once upon startup
+	xdgConfigDir := path.Join(xdg.ConfigHome, c.DefaultConfigParentDir)
 
-	if err == nil && file != "" {
-		return conf, file, err
-	} else if err != nil {
-		return conf, file, err
+	err = os.MkdirAll(xdgConfigDir, 0o755)
+	if err != nil {
+		return conf, file, fmt.Errorf("failed to make all directories %v: %w ", xdgConfigDir, err)
 	}
 
-	xdgConfig := path.Join(xdg.ConfigHome, c.DefaultConfigParentDir, c.DefaultConfig)
+	exists, err = fileExists(file)
+	if err != nil {
+		return conf, file, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
+	}
 
-	conf, file, err = loadConfFrom(xdgConfig, t)
-	if err == nil && file != "" {
-		return conf, file, err
+	if exists {
+		conf, file, err = loadConfFrom(file, t)
+
+		if err != nil {
+			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
+		}
+
+		return conf, file, nil
+	}
+
+	xdgConfig := path.Join(xdgConfigDir, c.DefaultConfig)
+
+	exists, err = fileExists(xdgConfig)
+	if err != nil {
+		return conf, file, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
+	}
+
+	if exists {
+		conf, file, err = loadConfFrom(xdgConfig, t)
+
+		if err != nil {
+			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
+		}
+
+		return conf, file, nil
 	}
 
 	xdgHome := path.Join(xdg.Home, c.DefaultConfigParentDir, c.DefaultConfig)
 
-	conf, file, err = loadConfFrom(xdgHome, t)
-	if err == nil && file != "" {
-		return conf, file, err
-	} else if err != nil {
-		return conf, file, err
+	exists, err = fileExists(xdgHome)
+	if err != nil {
+		return conf, file, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
 	}
 
-	// if the config file doesn't exist, create it at xdgConfig
+	if exists {
+		conf, file, err = loadConfFrom(xdgConfig, t)
+
+		if err != nil {
+			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
+		}
+
+		return conf, file, nil
+	}
+
+	// if the config file doesn't exist, create it at xdgConfig with the
+	// example config (note: this doesn't *write* to the xdgConfig path,
+	// but instead sets the target config write path there so that it will
+	// be saved there)
+	conf, file, err = loadConfFromEmbed("example.yml", exampleConf, t)
+
+	if err != nil {
+		return conf, file, fmt.Errorf("failed to load config from template config %v: %w ", file, err)
+	}
+
 	return conf, xdgConfig, err
 }
 
