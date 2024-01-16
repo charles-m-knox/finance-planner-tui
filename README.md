@@ -10,6 +10,26 @@ This is a terminal user interface-based application (TUI).
 ![A screenshot of the Profiles and Transactions page](./screenshots/profiles.png)
 ![A screenshot of the Results page](./screenshots/results.png)
 
+## Installation
+
+Either visit the [Releases](https://gitea.cmcode.dev/cmcode/finance-planner-tui/releases) page to download a precompiled binary, or alternatively, if you have Go installed you can just run `go install`:
+
+```bash
+GOPROXY=direct GOSUMDB=off go install gitea.cmcode.dev/cmcode/finance-planner-tui@latest
+```
+
+Then just run
+
+```bash
+finance-planner-tui
+```
+
+Note that if you are running this e.g. inside a Docker container or a limited shell, your `TERM` environment variable may restrict the number of colors that Finance Planner TUI can use. Consider setting it to something like `TERM=tmux-256color`:
+
+```bash
+TERM=tmux-256color finance-planner-tui
+```
+
 ## Features
 
 - uses a simple `yml` configuration format for files
@@ -19,6 +39,8 @@ This is a terminal user interface-based application (TUI).
 - custom color support
 
 ## Usage & information
+
+The following sections are basically just copy/pasted from the Help (F1 or `?`) page in the application itself. It is better to view it there.
 
 ### Profiles
 
