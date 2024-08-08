@@ -35,7 +35,6 @@ func loadConfFrom(file string, t map[string]string) (m.Config, string, error) {
 	}
 
 	err = yaml.Unmarshal(b, &conf)
-
 	if err != nil {
 		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToUnmarshalConfig"], file, err)
 	}
@@ -48,13 +47,12 @@ func loadConfFromEmbed(file string, emb embed.FS, t map[string]string) (m.Config
 
 	b, err := emb.ReadFile(file)
 	if err != nil {
-		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToLoadConfig"], file, err)
+		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToLoadEmbeddedConfig"], file, err)
 	}
 
 	err = yaml.Unmarshal(b, &conf)
-
 	if err != nil {
-		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToUnmarshalConfig"], file, err)
+		return conf, "", fmt.Errorf("%v %v: %w", t["ConfigFailedToUnmarshalEmbeddedConfig"], file, err)
 	}
 
 	return conf, file, nil
@@ -111,7 +109,6 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 
 	if exists {
 		conf, file, err = loadConfFrom(file, t)
-
 		if err != nil {
 			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
 		}
@@ -128,7 +125,6 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 
 	if exists {
 		conf, file, err = loadConfFrom(xdgConfig, t)
-
 		if err != nil {
 			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
 		}
@@ -145,7 +141,6 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 
 	if exists {
 		conf, file, err = loadConfFrom(xdgConfig, t)
-
 		if err != nil {
 			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
 		}
@@ -158,7 +153,6 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 	// but instead sets the target config write path there so that it will
 	// be saved there)
 	conf, file, err = loadConfFromEmbed("example.yml", exampleConf, t)
-
 	if err != nil {
 		return conf, file, fmt.Errorf("failed to load config from template config %v: %w ", file, err)
 	}

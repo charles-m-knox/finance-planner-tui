@@ -35,8 +35,11 @@ func populateProfilesPage() {
 		profile := &(FP.Config.Profiles[i])
 		FP.ProfileList.AddItem(getActiveProfileText(*profile), "", 0, func() {
 			FP.SelectedProfile = profile
+
 			populateProfilesPage()
+
 			getTransactionsTable()
+
 			FP.App.SetFocus(FP.TransactionsTable)
 		})
 	}

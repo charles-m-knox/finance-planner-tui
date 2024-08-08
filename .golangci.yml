@@ -136,6 +136,9 @@ linters:
     - exhaustivestruct
     - exhaustruct
     - gomnd # i like the concept but it comes up in too many places (magic numbers)
+    - funlen
+    - wrapcheck
+    - mnd # magic numbers
     # - deadcode
     # - golint
     # - ifshort

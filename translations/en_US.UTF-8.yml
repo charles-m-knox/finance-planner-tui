@@ -33,7 +33,9 @@ PromptKeyboardEchoModeText: |
   This was triggered by passing the -kb flag to this application on startup."
 
 ConfigFailedToLoadConfig: failed to read config from
+ConfigFailedToLoadEmbeddedConfig: failed to read embedded config from
 ConfigFailedToUnmarshalConfig: failed to unmarshal config from
+ConfigFailedToUnmarshalEmbeddedConfig: failed to unmarshal embedded config from
 
 ProfilesPageTitle: Profiles
 ProfilesPageProfileOpenMarker: "(open)"

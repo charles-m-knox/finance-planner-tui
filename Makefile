@@ -1,7 +1,7 @@
 .PHONY=build
 
 BUILDDIR=build
-VER=0.0.1
+VER=0.0.2
 BIN=$(BUILDDIR)/finance-planner-tui-v$(VER)
 
 build-dev:

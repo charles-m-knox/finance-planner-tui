@@ -3,6 +3,7 @@ package translations
 import (
 	"embed"
 	"fmt"
+	"log"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -22,7 +23,14 @@ func load(allTranslations embed.FS, language string) (map[string]string, error) 
 
 	b, err := allTranslations.ReadFile(file)
 	if err != nil {
-		return t, fmt.Errorf("failed to load file %v: %w", file, err)
+		log.Printf("failed to load file %v: %v", file, err.Error())
+
+		file := fmt.Sprintf("translations/%v.yml", defaultLanguage)
+
+		b, err = allTranslations.ReadFile(file)
+		if err != nil {
+			return t, fmt.Errorf("failed to load default language file %v: %w", file, err)
+		}
 	}
 
 	err = yaml.Unmarshal(b, &t)

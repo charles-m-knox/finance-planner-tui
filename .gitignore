@@ -11,3 +11,4 @@ config.yml
 !themes/*.yml
 *.cast
 *.cast.xz
+demo-assets/
