@@ -113,6 +113,7 @@ func actionMove(e *tcell.EventKey) *tcell.EventKey {
 			newTX := []lib.TX{}
 
 			for i := range FP.SelectedProfile.TX {
+				//nolint:gocritic
 				if FP.SelectedProfile.TX[i].ID == txid {
 					// this is the target to move to
 					FP.SelectedProfile.TX[i].Selected = false
@@ -189,6 +190,7 @@ func actionSelect(e *tcell.EventKey, multiSelecting bool) *tcell.EventKey {
 			cr, cc := FP.TransactionsTable.GetSelection()
 			// get the height & width of the transactions table
 			actual := cr - 1 // skip header
+
 			if multiSelecting {
 				// shift modifier is used to extend the selection
 				// from the previously selected index to the current

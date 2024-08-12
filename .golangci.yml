@@ -23,6 +23,7 @@ linters:
     - cyclop # it's just not worth the effort due to all the ui boilerplate. core business logic is refactored & tested elsewhere.
     - gocognit # same reason as above
     - nestif # same reason as above
+    - nlreturn # doesn't play well with all the ui boilerplate
     # - deadcode
     # - golint
     # - ifshort

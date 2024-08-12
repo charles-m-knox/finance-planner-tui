@@ -32,11 +32,11 @@ func initializeUndo(b []byte, noGz bool) {
 	FP.UndoBufferPos = 0
 }
 
-// sets the FP.SelectedProfile & config to the value specified by the current
+// Sets the FP.SelectedProfile & config to the value specified by the current
 // undo buffer
 //
 // warning: naively assumes that the FP.UndoBufferPos has already been set to a
-// valid value and updates the currently selected config & profile accordingly
+// valid value and updates the currently selected config & profile accordingly.
 func pushUndoBufferChangeToConfig() {
 	n := FP.SelectedProfile.Name
 
@@ -74,7 +74,7 @@ func pushUndoBufferChangeToConfig() {
 	}
 }
 
-// moves 1 step backward in the FP.UndoBuffer
+// Moves 1 step backward in the FP.UndoBuffer.
 func undo() {
 	undoBufferLen := len(FP.UndoBuffer)
 	newUndoBufferPos := FP.UndoBufferPos - 1
@@ -112,7 +112,7 @@ func undo() {
 	FP.App.SetFocus(FP.TransactionsTable)
 }
 
-// moves 1 step forward in the FP.UndoBuffer
+// Moves 1 step forward in the FP.UndoBuffer.
 func redo() {
 	undoBufferLen := len(FP.UndoBuffer)
 	undoBufferLastPos := undoBufferLen - 1
