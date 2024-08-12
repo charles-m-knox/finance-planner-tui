@@ -1,4 +1,4 @@
-package translations
+package main
 
 import (
 	"embed"
@@ -13,7 +13,7 @@ const defaultLanguage = "en_US.UTF-8"
 
 // Load loads translations/${language}.yml and returns a map of strings for
 // converted languages.
-func load(allTranslations embed.FS, language string) (map[string]string, error) {
+func loadTranslation(allTranslations embed.FS, language string) (map[string]string, error) {
 	if language == "" {
 		language = defaultLanguage
 	}
@@ -41,12 +41,12 @@ func load(allTranslations embed.FS, language string) (map[string]string, error) 
 	return t, nil
 }
 
-// Load loads translations/${language}.yml and returns a map of strings for
-// converted languages. As a fallback, it loads the defaultLanguage, so that
-// strings that are not yet translated will still show visible text in some
-// language (instead of an empty string).
-func Load(allTranslations embed.FS) (map[string]string, error) {
-	t, err := load(allTranslations, defaultLanguage)
+// loadTranslations loads translations/${language}.yml and returns a map of
+// strings for converted languages. As a fallback, it loads the defaultLanguage,
+// so that strings that are not yet translated will still show visible text in
+// some language (instead of an empty string).
+func loadTranslations(allTranslations embed.FS) (map[string]string, error) {
+	t, err := loadTranslation(allTranslations, defaultLanguage)
 	if err != nil {
 		return t, fmt.Errorf("failed to load default translations %v: %w", defaultLanguage, err)
 	}
@@ -62,7 +62,7 @@ func Load(allTranslations embed.FS) (map[string]string, error) {
 		break
 	}
 
-	u, err := load(allTranslations, language)
+	u, err := loadTranslation(allTranslations, language)
 	if err != nil {
 		return t, fmt.Errorf("failed to load specified translations %v: %w", language, err)
 	}

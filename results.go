@@ -6,9 +6,7 @@ import (
 	"strings"
 	"time"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -59,13 +57,13 @@ func getResultsFormLabel(m string) string {
 }
 
 func resultsFormSubmit1Yr() {
-	setResultsFormPreset(c.StartTodayPreset, c.OneYear)
+	setResultsFormPreset(StartTodayPreset, OneYear)
 	updateResultsForm()
 	getResultsTable()
 }
 
 func resultsFormSubmit5Yr() {
-	setResultsFormPreset(c.StartTodayPreset, c.FiveYear)
+	setResultsFormPreset(StartTodayPreset, FiveYear)
 	updateResultsForm()
 	getResultsTable()
 }
@@ -155,16 +153,16 @@ func setResultsFormPreset(startDate string, endDate string) {
 	var start, end time.Time
 
 	switch startDate {
-	case c.StartTodayPreset:
+	case StartTodayPreset:
 		fallthrough
 	default:
 		start = time.Now()
 	}
 
 	switch endDate {
-	case c.OneYear:
+	case OneYear:
 		end = start.Add(time.Hour * 24 * 365)
-	case c.FiveYear:
+	case FiveYear:
 		end = start.Add(time.Hour * 24 * 365 * 5)
 	}
 
@@ -185,30 +183,30 @@ func getResultsStats() {
 			return
 		}
 
-		stats, err := lib.GetStats(*(FP.LatestResults))
-		if err != nil {
-			FP.ResultsDescription.SetText(fmt.Sprintf(
-				"%v%v: %v%v",
-				FP.Colors["ResultsDescriptionError"],
-				FP.T["ResultsStatsErrorGettingStats"],
-				err.Error(),
-				c.Reset,
-			))
-		}
+		stats := lib.GetStats(*(FP.LatestResults))
+		// if err != nil {
+		// 	FP.ResultsDescription.SetText(fmt.Sprintf(
+		// 		"%v%v: %v%v",
+		// 		FP.Colors["ResultsDescriptionError"],
+		// 		FP.T["ResultsStatsErrorGettingStats"],
+		// 		err.Error(),
+		// 		Reset,
+		// 	))
+		// }
 
 		FP.ResultsDescription.SetText(fmt.Sprintf(
 			"%v%v%v",
 			FP.Colors["ResultsDescriptionStats"],
 			stats,
-			c.Reset,
+			Reset,
 		))
 	})
 }
 
 // Returns a list, representing the ordered columns to be shown in
 // the results table, alongside their configured colors.
-func getResultsTableHeaders() []models.TableCell {
-	return []models.TableCell{
+func getResultsTableHeaders() []TableCell {
+	return []TableCell{
 		{Text: FP.T["ResultsColumnDate"], Color: FP.Colors["ResultsColumnDate"]},
 		{Text: FP.T["ResultsColumnBalance"], Color: FP.Colors["ResultsColumnBalance"]},
 		{Text: FP.T["ResultsColumnCumulativeIncome"], Color: FP.Colors["ResultsColumnCumulativeIncome"]},
@@ -223,9 +221,9 @@ func getResultsTableHeaders() []models.TableCell {
 
 // Returns a list, representing the ordered columns to be shown in
 // the results table, alongside their configured colors.
-func getResultsTableCell(r lib.Result) []models.TableCell {
-	return []models.TableCell{
-		{Text: lib.FormatAsDate(r.Date), Color: FP.Colors["ResultsColumnDate"]},
+func getResultsTableCell(r lib.Result) []TableCell {
+	return []TableCell{
+		{Text: lib.GetNowDateString(r.Date), Color: FP.Colors["ResultsColumnDate"]},
 		{Text: lib.FormatAsCurrency(r.Balance), Color: FP.Colors["ResultsColumnBalance"]},
 		{Text: lib.FormatAsCurrency(r.CumulativeIncome), Color: FP.Colors["ResultsColumnCumulativeIncome"]},
 		{Text: lib.FormatAsCurrency(r.CumulativeExpenses), Color: FP.Colors["ResultsColumnCumulativeExpenses"]},
@@ -246,7 +244,7 @@ func setResultsTableHeaders() {
 		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v",
 			th[i].Color,
 			th[i].Text,
-			c.Reset,
+			Reset,
 		))
 		if th[i].Expand > 0 {
 			cell.SetExpansion(th[i].Expand)
@@ -265,7 +263,7 @@ func setResultsTableCellsForResult(i int, r lib.Result) {
 		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v",
 			td[j].Color,
 			td[j].Text,
-			c.Reset,
+			Reset,
 		))
 		if td[j].Expand > 0 {
 			cell.SetExpansion(td[j].Expand)
@@ -308,18 +306,20 @@ func generateResults() []lib.Result {
 			FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
 				FP.Colors["ResultsDescriptionPassive"],
 				status,
-				c.Reset,
+				Reset,
 			))
 		})
 	}
 
 	var err error
 
-	results, err = lib.GenerateResultsFromDateStrings(
-		&(FP.SelectedProfile.TX),
+	now := time.Now()
+
+	results, err = lib.GetResults(
+		FP.SelectedProfile.TX,
+		lib.GetDateFromStrSafe(st, now),
+		lib.GetDateFromStrSafe(end, now),
 		bal,
-		st,
-		end,
 		statusHook,
 	)
 	if err != nil {
@@ -327,7 +327,7 @@ func generateResults() []lib.Result {
 			FP.Colors["ResultsDescriptionError"],
 			FP.T["ResultsGenerationFailed"],
 			err.Error(),
-			c.Reset,
+			Reset,
 		))
 
 		return results
@@ -360,7 +360,7 @@ func resultsTableSelectionChanged(row, _ int) {
 		FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
 			FP.Colors["ResultsDescriptionPassive"],
 			sb.String(),
-			c.Reset,
+			Reset,
 		))
 	}
 }
@@ -395,7 +395,7 @@ func getResultsTable() {
 		FP.ResultsDescription.SetText(fmt.Sprintf("%v%v%v",
 			FP.Colors["ResultsDescriptionPassive"],
 			FP.T["ResultsTableStatusCalculatingPleaseWait"],
-			c.Reset,
+			Reset,
 		))
 
 		setSelectedProfileDefaults()

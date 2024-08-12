@@ -1,4 +1,4 @@
-package constants
+package main
 
 const (
 	ColumnOrder     = "Order"
@@ -175,6 +175,7 @@ var DefaultMappings = map[string]string{
 	DefaultBindingUndo:       ActionUndo,
 	DefaultBindingRedo:       ActionRedo,
 	DefaultBindingQuit:       ActionQuit,
+	DefaultBindingQuit2:      ActionQuit,
 	DefaultBindingSelect:     ActionSelect,
 	DefaultBindingMulti:      ActionMulti,
 	DefaultBindingMove:       ActionMove,
@@ -269,6 +270,7 @@ const (
 	DefaultBindingRedo       = "Ctrl+Y"
 	DefaultBindingUndo       = "Ctrl+Z"
 	DefaultBindingQuit       = "Ctrl+C"
+	DefaultBindingQuit2      = "Rune[q]"
 	DefaultBindingSelect     = "Rune[ ]"
 	DefaultBindingMulti      = "Ctrl+Space"
 	DefaultBindingMove       = "Rune[m]"

@@ -1,7 +1,7 @@
-package models
+package main
 
 import (
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
 )
 
 type Profile struct {

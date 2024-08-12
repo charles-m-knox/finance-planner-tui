@@ -25,7 +25,7 @@ func promptExit() {
 			FP.T["PromptExitButtonCancel"],
 		},
 	).SetText(FP.T["PromptExitText"]).SetDoneFunc(
-		func(buttonIndex int, buttonLabel string) {
+		func(buttonIndex int, _ /* buttonLabel */ string) {
 			switch buttonIndex {
 			case 0:
 				FP.App.Stop()
@@ -67,7 +67,7 @@ func promptKBMode(t map[string]string) {
 			t["PromptKeyboardEchoModeButtonContinue"],
 		},
 	).SetText(t["PromptKeyboardEchoModeText"]).SetDoneFunc(
-		func(buttonIndex int, buttonLabel string) {
+		func(buttonIndex int, _ /* buttonLabel */ string) {
 			switch buttonIndex {
 			case 0:
 				FP.FlagKeyboardEchoMode = false

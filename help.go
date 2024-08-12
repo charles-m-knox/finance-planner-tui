@@ -9,9 +9,6 @@ import (
 	"strings"
 	"text/template"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
-
 	"github.com/rivo/tview"
 )
 
@@ -105,9 +102,9 @@ func GetAllBoundActions(kb map[string][]string, def map[string]string) map[strin
 	return r
 }
 
-func getHelpText(conf m.Config, combinedKeybindings, combinedActions map[string][]string) string {
+func getHelpText(conf Config, combinedKeybindings, combinedActions map[string][]string) string {
 	type tmplDataShape struct {
-		Conf                m.Config
+		Conf                Config
 		AllActions          []string
 		DefaultKeybindings  map[string]string
 		CombinedKeybindings map[string][]string
@@ -117,11 +114,11 @@ func getHelpText(conf m.Config, combinedKeybindings, combinedActions map[string]
 
 	tmplData := tmplDataShape{
 		Conf:                conf,
-		AllActions:          c.AllActions,
-		DefaultKeybindings:  c.DefaultMappings,
+		AllActions:          AllActions,
+		DefaultKeybindings:  DefaultMappings,
 		CombinedKeybindings: combinedKeybindings,
 		CombinedActions:     combinedActions,
-		Explanations:        c.ActionExplanations,
+		Explanations:        ActionExplanations,
 	}
 
 	tmpl, err := template.New("help").Parse(FP.T["HelpTextTemplate"])
@@ -162,9 +159,9 @@ func setBottomPageNavText() {
 	p, _ := FP.Pages.GetFrontPage()
 
 	pgs := [][]string{
-		{PageHelp, FP.T["BottomPageNavTextHelp"], getBinding(c.ActionGlobalHelp)},
-		{PageProfiles, FP.T["BottomPageNavTextProfiles"], getBinding(c.ActionProfiles)},
-		{PageResults, FP.T["BottomPageNavTextResults"], getBinding(c.ActionResults)},
+		{PageHelp, FP.T["BottomPageNavTextHelp"], getBinding(ActionGlobalHelp)},
+		{PageProfiles, FP.T["BottomPageNavTextProfiles"], getBinding(ActionProfiles)},
+		{PageResults, FP.T["BottomPageNavTextResults"], getBinding(ActionResults)},
 	}
 
 	var sb strings.Builder
@@ -175,7 +172,7 @@ func setBottomPageNavText() {
 			color = "[gold]"
 		}
 
-		sb.WriteString(fmt.Sprintf("%v%v%v %v %v", v[2], c.Reset, color, v[1], c.Reset))
+		sb.WriteString(fmt.Sprintf("%v%v%v %v %v", v[2], Reset, color, v[1], Reset))
 	}
 
 	FP.BottomPageNavText.SetText(sb.String())

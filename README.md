@@ -12,10 +12,10 @@ This is a terminal user interface-based application (TUI).
 
 ## Installation
 
-Either visit the [Releases](https://gitea.cmcode.dev/cmcode/finance-planner-tui/releases) page to download a precompiled binary, or alternatively, if you have Go installed you can just run `go install`:
+Either visit the [Releases](https://git.cmcode.dev/cmcode/finance-planner-tui/releases) page to download a precompiled binary, or alternatively, if you have Go installed you can just run `go install`:
 
 ```bash
-GOPROXY=direct GOSUMDB=off go install gitea.cmcode.dev/cmcode/finance-planner-tui@latest
+GOPROXY=direct GOSUMDB=off go install git.cmcode.dev/cmcode/finance-planner-tui@latest
 ```
 
 Then just run
@@ -130,6 +130,5 @@ Press F1 while in the application or `?` and use the up/down keys to view the ke
 
 ## Warnings/disclaimers
 
-- This is not stable software.
-- Unit tests and other automated tests are not written yet.
+- The stability of this software is increasing as time goes on, but you should make reasonable efforts to double check the output of this program.
 - As with many of my personal projects, the code in this project contains a lot of experimental approaches to writing software that I might not otherwise have taken in a professional/serious environment. Please do not judge it in that regard.

@@ -10,6 +10,8 @@ FlagKeyboardEchoModeDesc: if true, all keyboard inputs except escape and ctrl+c 
 FlagKeyboardEchoModeFlag: kb
 FlagThemeDesc: the name of the theme to use, found under themes/*.yml when compiled; if the file extension ends in yaml or yml, it will load the theme at runtime instead
 FlagThemeFlag: t
+FlagShowVersionFlagDesc: shows the version of the application
+FlagShowVersionFlag: v
 DefaultNewProfileName: "New Profile Name"
 BottomPageNavTextHelp: "help"
 BottomPageNavTextProfiles: "profiles & transactions"

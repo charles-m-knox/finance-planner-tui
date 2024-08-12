@@ -6,9 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/lithammer/fuzzysearch/fuzzy"
@@ -21,7 +19,7 @@ import (
 // dropdown after focus has moved elsewhere.
 func resetTransactionsInputFieldAutocomplete() {
 	FP.TransactionsInputField.SetAutocompleteFunc(
-		func(currentText string) []string {
+		func(_ string) []string {
 			return []string{}
 		},
 	)
@@ -38,7 +36,7 @@ func deactivateTransactionsInputField() {
 	FP.TransactionsInputField.SetLabel(fmt.Sprintf("%v%v%v",
 		FP.Colors["TransactionsInputFieldPassive"],
 		FP.T["TransactionsInputFieldPlaceholderLabel"],
-		c.Reset,
+		Reset,
 	))
 
 	FP.TransactionsInputField.SetText("")
@@ -69,7 +67,7 @@ func activateTransactionsInputFieldNoAutocompleteReset(msg, value string) {
 	FP.TransactionsInputField.SetLabel(fmt.Sprintf("%v%v%v",
 		FP.Colors["TransactionsInputFieldActive"],
 		msg,
-		c.Reset,
+		Reset,
 	))
 
 	FP.TransactionsInputField.SetText(value)
@@ -232,26 +230,26 @@ func sortName(asc bool) TxSortFunc {
 	}
 }
 
-func sortID(asc bool) TxSortFunc {
-	return func(ti, tj lib.TX) bool {
-		til := strings.ToLower(ti.ID)
-		tjl := strings.ToLower(tj.ID)
+// func sortID(asc bool) TxSortFunc {
+// 	return func(ti, tj lib.TX) bool {
+// 		til := strings.ToLower(ti.ID)
+// 		tjl := strings.ToLower(tj.ID)
 
-		if asc {
-			if til == tjl {
-				return ti.ID > tj.ID
-			}
+// 		if asc {
+// 			if til == tjl {
+// 				return ti.ID > tj.ID
+// 			}
 
-			return til > tjl
-		}
+// 			return til > tjl
+// 		}
 
-		if til == tjl {
-			return ti.ID < tj.ID
-		}
+// 		if til == tjl {
+// 			return ti.ID < tj.ID
+// 		}
 
-		return til < tjl
-	}
-}
+// 		return til < tjl
+// 	}
+// }
 
 // string-typed date sorting functions
 
@@ -299,27 +297,27 @@ func sortEnds(asc bool) TxSortFunc {
 
 // strongly typed date sorting functions
 
-// TODO: validate that this works as expected
-func sortCreatedAt(asc bool) TxSortFunc {
-	return func(ti, tj lib.TX) bool {
-		if asc {
-			return ti.CreatedAt.After(tj.CreatedAt)
-		}
+// // TODO: validate that this works as expected.
+// func sortCreatedAt(asc bool) TxSortFunc {
+// 	return func(ti, tj lib.TX) bool {
+// 		if asc {
+// 			return ti.CreatedAt.After(tj.CreatedAt)
+// 		}
 
-		return ti.CreatedAt.Before(tj.CreatedAt)
-	}
-}
+// 		return ti.CreatedAt.Before(tj.CreatedAt)
+// 	}
+// }
 
-// TODO: validate that this works as expected
-func sortUpdatedAt(asc bool) TxSortFunc {
-	return func(ti, tj lib.TX) bool {
-		if asc {
-			return ti.UpdatedAt.After(tj.UpdatedAt)
-		}
+// // TODO: validate that this works as expected.
+// func sortUpdatedAt(asc bool) TxSortFunc {
+// 	return func(ti, tj lib.TX) bool {
+// 		if asc {
+// 			return ti.UpdatedAt.After(tj.UpdatedAt)
+// 		}
 
-		return ti.UpdatedAt.Before(tj.UpdatedAt)
-	}
-}
+// 		return ti.UpdatedAt.Before(tj.UpdatedAt)
+// 	}
+// }
 
 // boolean sort functions
 
@@ -406,7 +404,7 @@ func getTransactionsSortMap() map[string]TxSortFunc {
 
 // Sorts all transactions by the current sort column.
 func sortTX(sortMap map[string]TxSortFunc) {
-	if FP.SortTX == c.None || FP.SortTX == "" {
+	if FP.SortTX == None || FP.SortTX == "" {
 		return
 	}
 
@@ -441,8 +439,8 @@ func getSort(currentSort string) (string, string) {
 
 // Returns a list, representing the ordered columns to be shown in
 // the transactions table, alongside their configured colors.
-func getTransactionsTableHeaders() []models.TableCell {
-	return []models.TableCell{
+func getTransactionsTableHeaders() []TableCell {
+	return []TableCell{
 		{Text: FP.T["TransactionsColumnAmount"], Color: FP.Colors["TransactionsColumnAmount"]},
 		{Text: FP.T["TransactionsColumnActive"], Color: FP.Colors["TransactionsColumnActive"]},
 		{Text: FP.T["TransactionsColumnName"], Color: FP.Colors["TransactionsColumnName"], Expand: 1},
@@ -463,7 +461,7 @@ func getTransactionsTableHeaders() []models.TableCell {
 
 // Returns a list, representing the ordered columns to be shown in
 // the transactions table, alongside their configured colors.
-func getTransactionsTableCell(tx lib.TX) []models.TableCell {
+func getTransactionsTableCell(tx lib.TX) []TableCell {
 	cAmount := FP.Colors["TransactionsColumnAmount"]
 	cActive := FP.Colors["TransactionsColumnActive"]
 	cName := FP.Colors["TransactionsColumnName"]
@@ -507,7 +505,7 @@ func getTransactionsTableCell(tx lib.TX) []models.TableCell {
 		}
 	}
 
-	cells := []models.TableCell{
+	cells := []TableCell{
 		{Text: lib.FormatAsCurrency(tx.Amount), Color: cAmount, Align: tview.AlignCenter},
 		{Text: active, Color: cActive, Align: tview.AlignCenter},
 		{Text: tx.Name, Color: cName, Expand: 1, Align: tview.AlignLeft},
@@ -530,7 +528,7 @@ func getTransactionsTableCell(tx lib.TX) []models.TableCell {
 
 // Constructs and sets the columns for the first row in the transactions table.
 // Unsafe to run repeatedly and does not clear any existing fields/data.
-func setTransactionsTableHeaders(th []models.TableCell, currentSort, sortGlyph string) {
+func setTransactionsTableHeaders(th []TableCell, currentSort, sortGlyph string) {
 	for i := range th {
 		g := ""
 		if currentSort == th[i].Text {
@@ -541,7 +539,7 @@ func setTransactionsTableHeaders(th []models.TableCell, currentSort, sortGlyph s
 			th[i].Color,
 			g,
 			th[i].Text,
-			c.Reset,
+			Reset,
 		))
 		if th[i].Expand > 0 {
 			cell.SetExpansion(th[i].Expand)
@@ -573,7 +571,7 @@ func setTransactionsTableCellsForTransaction(i int, tx lib.TX, isLastSelection b
 		cell := tview.NewTableCell(fmt.Sprintf("%v%v%v",
 			td[j].Color,
 			td[j].Text,
-			c.Reset,
+			Reset,
 		)).SetBackgroundColor(bg).SetAlign(td[j].Align)
 		if td[j].Expand > 0 {
 			cell.SetExpansion(td[j].Expand)
@@ -719,7 +717,7 @@ func txChangeDate(i int, start bool) {
 	}
 
 	dayFunc := func() {
-		FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {})
+		FP.TransactionsInputField.SetDoneFunc(func(_ /* key */ tcell.Key) {})
 	}
 
 	monthFunc := func() {
@@ -768,18 +766,18 @@ func txChangeDate(i int, start bool) {
 }
 
 // TODO: translate these.
-// TODO: map colors, if any are used
+// TODO: map colors, if any are used.
 func txChangeFrequency(i int) {
 	activateTransactionsInputField("weekly|monthly|yearly:", FP.SelectedProfile.TX[i].Frequency)
 
 	saveFunc := func(newValue string) {
 		validatedFrequency := strings.TrimSpace(strings.ToUpper(newValue))
 		switch validatedFrequency {
-		case c.WEEKLY:
+		case WEEKLY:
 			fallthrough
-		case c.MONTHLY:
+		case MONTHLY:
 			fallthrough
-		case c.YEARLY:
+		case YEARLY:
 			break
 		default:
 			FP.TransactionsInputField.SetLabel("invalid value - can only be weekly, monthly, or yearly:")
@@ -801,13 +799,13 @@ func txChangeFrequency(i int) {
 
 	FP.TransactionsInputField.SetAutocompleteFunc(func(currentText string) []string {
 		return fuzzy.Find(strings.TrimSpace(strings.ToUpper(currentText)), []string{
-			c.MONTHLY,
-			c.YEARLY,
-			c.WEEKLY,
+			MONTHLY,
+			YEARLY,
+			WEEKLY,
 		})
 	})
 
-	FP.TransactionsInputField.SetAutocompletedFunc(func(text string, index, source int) bool {
+	FP.TransactionsInputField.SetAutocompletedFunc(func(text string, _ /* index */, _ /* source */ int) bool {
 		saveFunc(text)
 		deactivateTransactionsInputField()
 
@@ -821,6 +819,7 @@ func txChangeFrequency(i int) {
 		default:
 			saveFunc(FP.TransactionsInputField.GetText())
 		}
+
 		deactivateTransactionsInputField()
 	})
 }

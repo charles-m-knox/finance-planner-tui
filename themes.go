@@ -1,4 +1,4 @@
-package themes
+package main
 
 import (
 	"embed"
@@ -11,7 +11,7 @@ const defaultTheme = "standard"
 
 // Load loads themes/${theme}.yml and returns a map of strings for
 // converted themes.
-func load(allThemes embed.FS, theme string) (map[string]string, error) {
+func loadTheme(allThemes embed.FS, theme string) (map[string]string, error) {
 	if theme == "" {
 		theme = defaultTheme
 	}
@@ -35,8 +35,8 @@ func load(allThemes embed.FS, theme string) (map[string]string, error) {
 // Load loads themes/${theme}.yml and returns a map of strings of colors. As a
 // fallback, it loads the defaultTheme, so that strings that are not set to a
 // color will still show visible text in some sense.
-func Load(allThemes embed.FS, theme string) (map[string]string, error) {
-	t, err := load(allThemes, defaultTheme)
+func loadThemes(allThemes embed.FS, theme string) (map[string]string, error) {
+	t, err := loadTheme(allThemes, defaultTheme)
 	if err != nil {
 		return t, fmt.Errorf("failed to load default themes %v: %w", defaultTheme, err)
 	}
@@ -50,7 +50,7 @@ func Load(allThemes embed.FS, theme string) (map[string]string, error) {
 		break
 	}
 
-	u, err := load(allThemes, theme)
+	u, err := loadTheme(allThemes, theme)
 	if err != nil {
 		return t, fmt.Errorf("failed to load specified themes %v: %w", theme, err)
 	}

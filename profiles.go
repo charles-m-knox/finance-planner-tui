@@ -5,9 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -17,9 +15,9 @@ func setStatusNoChanges() {
 	FP.ProfileStatusText.SetText(fmt.Sprintf("[gray] %v", FP.T["ProfilesPageStatusTextNoChanges"]))
 }
 
-func getActiveProfileText(profile m.Profile) string {
+func getActiveProfileText(profile Profile) string {
 	if FP.SelectedProfile != nil && FP.SelectedProfile.Name == profile.Name {
-		return fmt.Sprintf("[white::bu]%v %v%v", profile.Name, FP.T["ProfilesPageProfileOpenMarker"], c.Reset)
+		return fmt.Sprintf("[white::bu]%v %v%v", profile.Name, FP.T["ProfilesPageProfileOpenMarker"], Reset)
 	}
 
 	return profile.Name
@@ -78,7 +76,7 @@ func getProfilesPage() *tview.Flex {
 		"%v%v%v",
 		FP.Colors["TransactionsInputFieldPassive"],
 		FP.T["ProfilesPageInputFieldAppearsHere"],
-		c.Reset,
+		Reset,
 	))
 
 	FP.TransactionsSortMap = getTransactionsSortMap()

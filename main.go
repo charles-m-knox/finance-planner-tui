@@ -3,13 +3,12 @@ package main
 import (
 	"embed"
 	"flag"
+	"fmt"
 	"log"
+	"os"
+	"time"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/themes"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/translations"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -24,6 +23,13 @@ var AllThemes embed.FS
 
 //go:embed example.yml
 var ExampleConfig embed.FS
+
+// The version of the application; set at build time via:
+//
+//	`go build -ldflags "-X main.version=1.2.3" main.go`
+//
+//nolint:revive
+var version string = "dev"
 
 const (
 	// PageProfiles is not shown to the user ever, and is only used in the code.
@@ -50,11 +56,11 @@ type FinancePlanner struct {
 
 	// The currently loaded configuration. The contents of this will be saved
 	// to disk.
-	Config m.Config
+	Config Config
 
 	// A pointer to the currently selected profile, which is a member of the
 	// currently loaded config.
-	SelectedProfile *m.Profile
+	SelectedProfile *Profile
 
 	// The primary primitive that the app uses as its root in the terminal.
 	Layout *tview.Flex
@@ -170,6 +176,9 @@ type FinancePlanner struct {
 	// will fallback to the default theme's values.
 	FlagTheme string
 
+	// Shows the version and quits the app if true.
+	FlagShowVersion bool
+
 	// All default & custom colors are stored in here at runtime. Themes can be
 	// loaded via FlagTheme.
 	Colors map[string]string
@@ -186,7 +195,7 @@ type FinancePlanner struct {
 
 	// All of the columns that will be shown in the transactions table. Loaded
 	// once at runtime with values from translation table.
-	TransactionsTableHeaders []m.TableCell
+	TransactionsTableHeaders []TableCell
 }
 
 // FP contains all shared data in a global. Avoid using globals where possible,
@@ -200,7 +209,7 @@ var FP FinancePlanner
 // For an input keybinding (straight from event.Name()), an output action
 // will be returned, for example - "Ctrl+Z" will return "undo".
 func getDefaultKeybind(name string) string {
-	m, ok := c.DefaultMappings[name]
+	m, ok := DefaultMappings[name]
 	if !ok {
 		return ""
 	}
@@ -251,14 +260,14 @@ func capture(e *tcell.EventKey) *tcell.EventKey {
 // globals. This function should only ever be run once.
 //
 // t is the translation map, and conf is the freshly loaded config.
-func bootstrap(t map[string]string, conf m.Config) {
+func bootstrap(t map[string]string, conf Config) {
 	b, err := yaml.Marshal(conf)
 	if err != nil {
 		log.Fatalf("%v: %v", t["ErrorFailedToMarshalInitialConfig"], err.Error())
 	}
 
-	FP.KeyBindings = GetCombinedKeybindings(conf.Keybindings, c.DefaultMappings)
-	FP.ActionBindings = GetAllBoundActions(conf.Keybindings, c.DefaultMappings)
+	FP.KeyBindings = GetCombinedKeybindings(conf.Keybindings, DefaultMappings)
+	FP.ActionBindings = GetAllBoundActions(conf.Keybindings, DefaultMappings)
 
 	initializeUndo(b, conf.DisableGzipCompressionInUndoBuffer)
 
@@ -299,18 +308,25 @@ func parseFlags(t map[string]string) {
 	flag.BoolVar(&FP.FlagShouldMigrate, t["FlagShouldMigrateFlag"], false, t["FlagShouldMigrateDesc"])
 	flag.BoolVar(&FP.FlagKeyboardEchoMode, t["FlagKeyboardEchoModeFlag"], false, t["FlagKeyboardEchoModeDesc"])
 	flag.StringVar(&FP.FlagTheme, t["FlagThemeFlag"], "", t[" FlagThemeDesc"])
+	flag.BoolVar(&FP.FlagShowVersion, t["FlagShowVersionFlag"], false, t["FlagShowVersionFlagDesc"])
 	flag.Parse()
 }
 
 func main() {
 	var err error
 
-	FP.T, err = translations.Load(AllTranslations)
+	FP.T, err = loadTranslations(AllTranslations)
 	if err != nil {
 		log.Fatalf("failed to load translations: %v", err.Error())
 	}
 
 	parseFlags(FP.T)
+
+	if FP.FlagShowVersion {
+		//nolint:forbidigo
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	if FP.FlagShouldMigrate {
 		JSONtoYAML()
@@ -328,7 +344,7 @@ func main() {
 		theme = FP.FlagTheme
 	}
 
-	FP.Colors, err = themes.Load(AllThemes, theme)
+	FP.Colors, err = loadThemes(AllThemes, theme)
 	if err != nil {
 		log.Fatalf("%v: %v", FP.T["ErrorFailedToLoadThemes"], err.Error())
 	}
@@ -336,8 +352,8 @@ func main() {
 	if len(FP.Config.Profiles) > 0 {
 		FP.SelectedProfile = &(FP.Config.Profiles[0])
 	} else {
-		n := m.Profile{
-			TX:   []lib.TX{lib.GetNewTX()},
+		n := Profile{
+			TX:   []lib.TX{lib.GetNewTX(time.Now())},
 			Name: FP.T["DefaultNewProfileName"],
 		}
 		FP.Config.Profiles = append(FP.Config.Profiles, n)

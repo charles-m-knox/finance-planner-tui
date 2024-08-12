@@ -7,8 +7,6 @@ import (
 	"io"
 	"slices"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,7 +22,7 @@ func initializeUndo(b []byte, noGz bool) {
 				"%v%v%v",
 				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferConfigCompressionError"],
-				c.Reset,
+				Reset,
 			))
 		}
 
@@ -53,7 +51,7 @@ func pushUndoBufferChangeToConfig() {
 				"%v%v%v",
 				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferConfigCompressionError"],
-				c.Reset,
+				Reset,
 			))
 		}
 	}
@@ -64,7 +62,7 @@ func pushUndoBufferChangeToConfig() {
 			"%v%v%v",
 			FP.Colors["ProfileStatusTextError"],
 			FP.T["UndoBufferPushValueConfigUnmarshalFailure"],
-			c.Reset,
+			Reset,
 		))
 	}
 	// set the FP.SelectedProfile to the latest FP.UndoBuffer's config
@@ -89,7 +87,7 @@ func undo() {
 			FP.T["UndoBufferNothingToUndo"],
 			FP.UndoBufferPos+1,
 			undoBufferLen,
-			c.Reset,
+			Reset,
 		))
 
 		return
@@ -105,7 +103,7 @@ func undo() {
 		FP.T["UndoBufferUndoAction"],
 		FP.UndoBufferPos+1,
 		undoBufferLen,
-		c.Reset,
+		Reset,
 	))
 
 	populateProfilesPage()
@@ -128,7 +126,7 @@ func redo() {
 			FP.T["UndoBufferNothingToRedo"],
 			FP.UndoBufferPos+1,
 			undoBufferLen,
-			c.Reset,
+			Reset,
 		))
 
 		return
@@ -144,7 +142,7 @@ func redo() {
 		FP.T["UndoBufferRedoAction"],
 		FP.UndoBufferPos+1,
 		undoBufferLen,
-		c.Reset,
+		Reset,
 	))
 
 	populateProfilesPage()
@@ -218,7 +216,7 @@ func modified() {
 				"%v%v%v",
 				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferCannotMarshalConfigError"],
-				c.Reset,
+				Reset,
 			))
 		}
 
@@ -233,7 +231,7 @@ func modified() {
 					"%v%v%v",
 					FP.Colors["ProfileStatusTextError"],
 					FP.T["UndoBufferConfigDecompressionError"],
-					c.Reset,
+					Reset,
 				))
 			}
 		}
@@ -249,7 +247,7 @@ func modified() {
 				FP.T["UndoBufferNoChange"],
 				FP.UndoBufferPos+1,
 				len(FP.UndoBuffer),
-				c.Reset,
+				Reset,
 			))
 
 			return
@@ -272,7 +270,7 @@ func modified() {
 			"%v%v%v",
 			FP.Colors["ProfileStatusTextError"],
 			FP.T["UndoBufferCannotMarshalConfigError"],
-			c.Reset,
+			Reset,
 		))
 	}
 
@@ -288,7 +286,7 @@ func modified() {
 				"%v%v%v",
 				FP.Colors["ProfileStatusTextError"],
 				FP.T["UndoBufferConfigCompressionError"],
-				c.Reset,
+				Reset,
 			))
 		}
 	}
@@ -307,7 +305,7 @@ func modified() {
 	FP.ProfileStatusText.SetText(fmt.Sprintf(
 		"%v%v*%v[%v/%v %vkB]%v",
 		FP.Colors["ProfileStatusTextModifiedMarker"],
-		c.Reset,
+		Reset,
 		FP.Colors["ProfileStatusTextPassive"],
 		// FP.FlagConfigFile,
 		FP.UndoBufferPos+1,
@@ -315,6 +313,6 @@ func modified() {
 		// float64(len(bgz)/1000),
 		// float64(len(b)/1000),
 		float64(totalUndoBufferSize/1000),
-		c.Reset,
+		Reset,
 	))
 }

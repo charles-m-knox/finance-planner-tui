@@ -1002,8 +1002,8 @@ profiles:
           updatedAt: 2023-12-22T22:53:55.621177084-07:00
           selected: false
       name: example
-      selectedRow: 0
-      selectedColumn: 0
+      selectedRow: 1
+      selectedColumn: 2
       startingBalance: $5,000.00
       startDay: "23"
       startMonth: "12"

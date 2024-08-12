@@ -9,12 +9,10 @@ import (
 	"os"
 	"path"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
+	"git.cmcode.dev/cmcode/uuid"
 
 	"github.com/adrg/xdg"
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,8 +24,8 @@ import (
 // empty string). The third return value is an error, if present.
 //
 // The "t" parameter is the map of translations.
-func loadConfFrom(file string, t map[string]string) (m.Config, string, error) {
-	conf := m.Config{}
+func loadConfFrom(file string, t map[string]string) (Config, string, error) {
+	conf := Config{}
 
 	b, err := os.ReadFile(file)
 	if err != nil {
@@ -42,8 +40,8 @@ func loadConfFrom(file string, t map[string]string) (m.Config, string, error) {
 	return conf, file, nil
 }
 
-func loadConfFromEmbed(file string, emb embed.FS, t map[string]string) (m.Config, string, error) {
-	conf := m.Config{}
+func loadConfFromEmbed(file string, emb embed.FS, t map[string]string) (Config, string, error) {
+	conf := Config{}
 
 	b, err := emb.ReadFile(file)
 	if err != nil {
@@ -83,19 +81,19 @@ func fileExists(name string) (bool, error) {
 // value so that other logic can use it.
 //
 // The "t" parameter is the map of translations.
-func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Config, string, error) {
+func loadConfig(file string, t map[string]string, exampleConf embed.FS) (Config, string, error) {
 	if file == "" {
-		file = c.DefaultConfig
+		file = DefaultConfig
 	}
 
 	var err error
 
 	var exists bool
 
-	var conf m.Config
+	var conf Config
 
 	// create the XDG config dir for this application once upon startup
-	xdgConfigDir := path.Join(xdg.ConfigHome, c.DefaultConfigParentDir)
+	xdgConfigDir := path.Join(xdg.ConfigHome, DefaultConfigParentDir)
 
 	err = os.MkdirAll(xdgConfigDir, 0o755)
 	if err != nil {
@@ -116,7 +114,7 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 		return conf, file, nil
 	}
 
-	xdgConfig := path.Join(xdgConfigDir, c.DefaultConfig)
+	xdgConfig := path.Join(xdgConfigDir, DefaultConfig)
 
 	exists, err = fileExists(xdgConfig)
 	if err != nil {
@@ -132,7 +130,7 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 		return conf, file, nil
 	}
 
-	xdgHome := path.Join(xdg.Home, c.DefaultConfigParentDir, c.DefaultConfig)
+	xdgHome := path.Join(xdg.Home, DefaultConfigParentDir, DefaultConfig)
 
 	exists, err = fileExists(xdgHome)
 	if err != nil {
@@ -162,7 +160,7 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (m.Confi
 
 // processConfig applies any post-load configuration parameters/logic to ensure
 // that data is valid & consistent. Use it after loadConfig.
-func processConfig(conf *m.Config) {
+func processConfig(conf *Config) {
 	if conf == nil {
 		log.Fatalf("config is nil")
 	}
@@ -188,8 +186,8 @@ func JSONtoYAML() {
 		log.Fatalf("failed to load conf.json")
 	}
 
-	nc := m.Config{
-		Profiles: []m.Profile{
+	nc := Config{
+		Profiles: []Profile{
 			{
 				Name: "migrated",
 				TX:   []lib.TX{},
@@ -204,7 +202,7 @@ func JSONtoYAML() {
 
 	// update all uuids in the config
 	for i := range nc.Profiles[0].TX {
-		nc.Profiles[0].TX[i].ID = uuid.NewString()
+		nc.Profiles[0].TX[i].ID = uuid.New()
 	}
 
 	out, err := yaml.Marshal(nc)
@@ -212,6 +210,7 @@ func JSONtoYAML() {
 		log.Fatalf("failed to marshal nc: %v", err.Error())
 	}
 
+	//nolint:gosec
 	err = os.WriteFile("migrated.yml", out, 0o644)
 	if err != nil {
 		log.Fatalf("failed to write migrated.yml: %v", err.Error())

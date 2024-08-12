@@ -5,10 +5,9 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
-	c "gitea.cmcode.dev/cmcode/finance-planner-tui/constants"
-	"gitea.cmcode.dev/cmcode/finance-planner-tui/lib"
-	m "gitea.cmcode.dev/cmcode/finance-planner-tui/models"
+	lib "git.cmcode.dev/cmcode/finance-planner-lib"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -74,7 +73,7 @@ func actionMove(e *tcell.EventKey) *tcell.EventKey {
 			// move all selected items to the currently selected row:
 			// delete items, then re-add the items after the current
 			// row, then highlight the correct row
-			if FP.SortTX != c.None && FP.SortTX != "" {
+			if FP.SortTX != None && FP.SortTX != "" {
 				FP.ProfileStatusText.SetText(fmt.Sprintf("[orange]sort: %v", FP.SortTX))
 
 				return nil
@@ -97,7 +96,7 @@ func actionMove(e *tcell.EventKey) *tcell.EventKey {
 				return nil
 			}
 
-			setTransactionsTableSort(c.None)
+			setTransactionsTableSort(None)
 
 			// get the height & width of the transactions table
 			cr, cc := FP.TransactionsTable.GetSelection()
@@ -271,6 +270,7 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 		case FP.ProfileList:
 			if len(FP.Config.Profiles) <= 1 {
 				FP.ProfileStatusText.SetText("[gray] can't delete last profile")
+
 				return nil
 			}
 
@@ -283,7 +283,7 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 					"[gold::b]confirm deletion of profile %v by typing 'delete %v':%v",
 					FP.SelectedProfile.Name,
 					FP.SelectedProfile.Name,
-					c.Reset,
+					Reset,
 				)
 			}
 
@@ -306,6 +306,7 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 					profileName := strings.TrimPrefix(value, "delete ")
 					if profileName != FP.SelectedProfile.Name {
 						FP.TransactionsInputField.SetLabel(getPrompt())
+
 						return
 					}
 
@@ -313,6 +314,7 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 					for i := range FP.Config.Profiles {
 						if profileName == FP.Config.Profiles[i].Name {
 							FP.Config.Profiles = slices.Delete(FP.Config.Profiles, i, i+1)
+
 							return
 						}
 					}
@@ -359,13 +361,14 @@ func actionAdd(e *tcell.EventKey, duplicating bool) *tcell.EventKey {
 				// largestOrderHolder := []lib.TX{}
 				// largestOrderHolder = append(largestOrderHolder, FP.SelectedProfile.TX...)
 				// largestOrderHolder = append(largestOrderHolder, nt...)
-				newTX := lib.GetNewTX()
+				newTX := lib.GetNewTX(time.Now())
 				// newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
 				nt = append(nt, newTX)
 			} else {
 				// iterate through the list once to find how many selected
 				// items there are
 				numSelected := 0
+
 				for i := range FP.SelectedProfile.TX {
 					if FP.SelectedProfile.TX[i].Selected {
 						numSelected++
@@ -378,8 +381,11 @@ func actionAdd(e *tcell.EventKey, duplicating bool) *tcell.EventKey {
 					}
 				}
 
+				now := time.Now()
+
 				for i := range FP.SelectedProfile.TX {
 					isHighlightedRow := i == actual && numSelected <= 1
+
 					isSelectedDuplicationCandidate := FP.SelectedProfile.TX[i].Selected && duplicating
 					if isHighlightedRow || isSelectedDuplicationCandidate {
 						// keep track of the highest order in a temporary
@@ -387,8 +393,7 @@ func actionAdd(e *tcell.EventKey, duplicating bool) *tcell.EventKey {
 						// largestOrderHolder := []lib.TX{}
 						// largestOrderHolder = append(largestOrderHolder, FP.SelectedProfile.TX...)
 						// largestOrderHolder = append(largestOrderHolder, nt...)
-
-						newTX := lib.GetNewTX()
+						newTX := lib.GetNewTX(now)
 						// newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
 
 						newTX.Amount = FP.SelectedProfile.TX[i].Amount
@@ -438,6 +443,7 @@ func actionAdd(e *tcell.EventKey, duplicating bool) *tcell.EventKey {
 				case tcell.KeyEscape:
 					// don't save the changes
 					deactivateTransactionsInputField()
+
 					return
 				default:
 					// validate that the name is unique
@@ -445,19 +451,22 @@ func actionAdd(e *tcell.EventKey, duplicating bool) *tcell.EventKey {
 					for i := range FP.Config.Profiles {
 						if newProfileName == FP.Config.Profiles[i].Name {
 							FP.TransactionsInputField.SetLabel("profile name must be unique:")
+
 							return
 						}
 					}
 
 					newProfile := *FP.SelectedProfile
 					newProfile.Name = newProfileName
+
 					if !duplicating {
-						newProfile = m.Profile{Name: newProfileName}
+						newProfile = Profile{Name: newProfileName}
 					}
 
 					FP.SelectedProfile = &newProfile
 
 					FP.Config.Profiles = append(FP.Config.Profiles, newProfile)
+
 					modified()
 					deactivateTransactionsInputField()
 					populateProfilesPage()
@@ -493,6 +502,7 @@ func actionEdit(e *tcell.EventKey) *tcell.EventKey {
 				case tcell.KeyEscape:
 					// don't save the changes
 					deactivateTransactionsInputField()
+
 					return
 				default:
 					// validate that the name is unique
@@ -500,11 +510,13 @@ func actionEdit(e *tcell.EventKey) *tcell.EventKey {
 					for i := range FP.Config.Profiles {
 						if newProfileName == FP.Config.Profiles[i].Name {
 							FP.TransactionsInputField.SetLabel("profile name must be unique:")
+
 							return
 						}
 					}
 
 					FP.SelectedProfile.Name = newProfileName
+
 					modified()
 					deactivateTransactionsInputField()
 					populateProfilesPage()
@@ -528,7 +540,7 @@ func actionEdit(e *tcell.EventKey) *tcell.EventKey {
 
 func actionSave() *tcell.EventKey {
 	if FP.Config.Version == "" {
-		FP.Config.Version = c.ConfigVersion
+		FP.Config.Version = ConfigVersion
 	}
 
 	b, err := yaml.Marshal(FP.Config)
@@ -952,63 +964,63 @@ func action(action string, e *tcell.EventKey) *tcell.EventKey {
 	multiSelecting := false
 
 	switch action {
-	case c.ActionRedo:
+	case ActionRedo:
 		return actionRedo(e)
-	case c.ActionUndo:
+	case ActionUndo:
 		return actionUndo(e)
-	case c.ActionQuit:
+	case ActionQuit:
 		return actionQuit()
-	case c.ActionMulti:
+	case ActionMulti:
 		multiSelecting = true
 
 		fallthrough
-	case c.ActionSelect:
+	case ActionSelect:
 		return actionSelect(e, multiSelecting)
-	case c.ActionMove:
+	case ActionMove:
 		return actionMove(e)
-	case c.ActionDelete:
+	case ActionDelete:
 		return actionDelete(e)
-	case c.ActionDuplicate:
+	case ActionDuplicate:
 		duplicating = true
 
 		fallthrough
-	case c.ActionAdd:
+	case ActionAdd:
 		return actionAdd(e, duplicating)
-	case c.ActionEdit:
+	case ActionEdit:
 		return actionEdit(e)
-	case c.ActionSave:
+	case ActionSave:
 		return actionSave()
-	case c.ActionEnd:
+	case ActionEnd:
 		return actionEnd(e)
-	case c.ActionHome:
+	case ActionHome:
 		return actionHome(e)
-	case c.ActionDown:
+	case ActionDown:
 		return actionDown(e)
-	case c.ActionUp:
+	case ActionUp:
 		return actionUp(e)
-	case c.ActionLeft:
+	case ActionLeft:
 		return actionLeft(e)
-	case c.ActionRight:
+	case ActionRight:
 		return actionRight(e)
-	case c.ActionPageDown:
+	case ActionPageDown:
 		return actionPageDown(e)
-	case c.ActionPageUp:
+	case ActionPageUp:
 		return actionPageUp(e)
-	case c.ActionBackTab:
+	case ActionBackTab:
 		return actionBackTab(e)
-	case c.ActionTab:
+	case ActionTab:
 		return actionTab(e)
-	case c.ActionEsc:
+	case ActionEsc:
 		return actionEsc(e)
-	case c.ActionResults:
+	case ActionResults:
 		return actionResults()
-	case c.ActionProfiles:
+	case ActionProfiles:
 		return actionProfiles()
-	case c.ActionGlobalHelp:
+	case ActionGlobalHelp:
 		return actionGlobalHelp()
-	case c.ActionHelp:
+	case ActionHelp:
 		return actionHelp(e)
-	case c.ActionSearch:
+	case ActionSearch:
 		// searching not implemented yet
 		fallthrough
 	default:
