@@ -26,6 +26,10 @@ run:
 lint:
 	golangci-lint run ./...
 
+install:
+	rsync -avP ./$(BIN)-$(UNAME)-$(ARCH) $(OUT_BIN_DIR)/$(FILE)
+	chmod +x $(OUT_BIN_DIR)/$(FILE)
+
 compress-prod: mkbuilddir
 	rm -f $(BIN)-compressed
 	upx --best -o ./$(BIN)-compressed $(BIN)

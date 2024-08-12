@@ -12,3 +12,4 @@ config.yml
 *.cast
 *.cast.xz
 demo-assets/
+old/
