@@ -2,7 +2,7 @@
 
 BUILDDIR=build
 # make sure to update constants.go's version here too
-VER=0.1.0
+VER=0.1.1
 FILE=finance-planner-tui
 BIN=$(BUILDDIR)/$(FILE)-v$(VER)
 OUT_BIN_DIR=~/.local/bin

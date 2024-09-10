@@ -12,10 +12,10 @@ This is a terminal user interface-based application (TUI).
 
 ## Installation
 
-Either visit the [Releases](https://git.cmcode.dev/cmcode/finance-planner-tui/releases) page to download a precompiled binary, or alternatively, if you have Go installed you can just run `go install`:
+Either visit the [Releases](https://github.com/charles-m-knox/finance-planner-tui/releases) page to download a precompiled binary, or alternatively, if you have Go installed you can just run `go install`:
 
 ```bash
-GOPROXY=direct GOSUMDB=off go install git.cmcode.dev/cmcode/finance-planner-tui@latest
+go install github.com/charles-m-knox/finance-planner-tui@latest
 ```
 
 Then just run

@@ -1,7 +1,7 @@
 package main
 
 import (
-	lib "git.cmcode.dev/cmcode/finance-planner-lib"
+	lib "github.com/charles-m-knox/finance-planner-lib"
 )
 
 type Profile struct {

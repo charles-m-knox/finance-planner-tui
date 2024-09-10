@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	lib "git.cmcode.dev/cmcode/finance-planner-lib"
+	lib "github.com/charles-m-knox/finance-planner-lib"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"

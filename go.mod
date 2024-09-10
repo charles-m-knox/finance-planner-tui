@@ -1,11 +1,11 @@
-module git.cmcode.dev/cmcode/finance-planner-tui
+module github.com/charles-m-knox/finance-planner-tui
 
 go 1.22.5
 
 require (
-	git.cmcode.dev/cmcode/finance-planner-lib v0.0.0-20240812181646-5a0c4bcc8e1e
-	git.cmcode.dev/cmcode/uuid v0.0.1
 	github.com/adrg/xdg v0.5.0
+	github.com/charles-m-knox/finance-planner-lib v0.0.1
+	github.com/charles-m-knox/go-uuid v0.0.2
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/rivo/tview v0.0.0-20240807205129-e4c497cc59ed

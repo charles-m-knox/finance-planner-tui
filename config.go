@@ -9,8 +9,8 @@ import (
 	"os"
 	"path"
 
-	lib "git.cmcode.dev/cmcode/finance-planner-lib"
-	"git.cmcode.dev/cmcode/uuid"
+	lib "github.com/charles-m-knox/finance-planner-lib"
+	"github.com/charles-m-knox/go-uuid"
 
 	"github.com/adrg/xdg"
 	"gopkg.in/yaml.v3"

@@ -1,9 +1,9 @@
-git.cmcode.dev/cmcode/finance-planner-lib v0.0.0-20240812181646-5a0c4bcc8e1e h1:9r8wUO63TIIuaiHpPqlg1qWfGiE2FdjpGEJ880scmx0=
-git.cmcode.dev/cmcode/finance-planner-lib v0.0.0-20240812181646-5a0c4bcc8e1e/go.mod h1:SN2P/GmYuMXeIW+QAGcjfq9yT5LDP/SsqbFSTprP/j0=
-git.cmcode.dev/cmcode/uuid v0.0.1 h1:EeBhT7bPufbih43obmwa7jJBmPYKRNjCdRrw3Q9LDPE=
-git.cmcode.dev/cmcode/uuid v0.0.1/go.mod h1:Ox5s2GqIMNmj/rAFMKuK56gS6miDJexeMiuiTMnYFCU=
 github.com/adrg/xdg v0.5.0 h1:dDaZvhMXatArP1NPHhnfaQUqWBLBsmx1h1HXQdMoFCY=
 github.com/adrg/xdg v0.5.0/go.mod h1:dDdY4M4DF9Rjy4kHPeNL+ilVF+p2lK8IdM9/rTSGcI4=
+github.com/charles-m-knox/finance-planner-lib v0.0.1 h1:LCs2ngE0qyiMOMHl7L28K5s5OecifC+B83pljB6pWNo=
+github.com/charles-m-knox/finance-planner-lib v0.0.1/go.mod h1:BVg1Cso1NjOqv7Vo7iwIte/nBpnhyqA70AmPDqGNBvo=
+github.com/charles-m-knox/go-uuid v0.0.2 h1:ypob7j0dpeBEXjy1q8mIrrdwxGg8LZOZfmiwPWx+gTw=
+github.com/charles-m-knox/go-uuid v0.0.2/go.mod h1:8CiTxJeu4s4uLb8itbezDiO3qrmkk8s3nybi1E0JYrw=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/gdamore/encoding v1.0.0/go.mod h1:alR0ol34c49FCSBLjhosxzcPHQbf2trDkoo5dl+VrEg=
