@@ -48,6 +48,16 @@ PromptKeyboardEchoModeText: |
 
   This was triggered by passing the -kb flag to this application on startup."
 
+PromptExampleLoaded: |
+  The file "@@@" was empty, so an example was loaded.
+PromptExampleOK: |
+  OK
+
+ConfigNoFileSpecified: |
+  Please specify a file as the first argument to this program, or use the -f
+  flag. If the file you specify doesn't exist yet, an example will be loaded,
+  and you can save it.
+
 ConfigFailedToLoadConfig: failed to read config from
 ConfigFailedToLoadEmbeddedConfig: failed to read embedded config from
 ConfigFailedToUnmarshalConfig: failed to unmarshal config from

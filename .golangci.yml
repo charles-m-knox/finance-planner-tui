@@ -24,6 +24,7 @@ linters:
     - gocognit # same reason as above
     - nestif # same reason as above
     - nlreturn # doesn't play well with all the ui boilerplate
+    - forbidigo
     # - deadcode
     # - golint
     # - ifshort

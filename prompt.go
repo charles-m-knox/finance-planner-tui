@@ -1,6 +1,10 @@
 package main
 
-import "github.com/gdamore/tcell/v2"
+import (
+	"strings"
+
+	"github.com/gdamore/tcell/v2"
+)
 
 // This file mainly contains functions for the hidden prompt page in the
 // application.
@@ -37,6 +41,37 @@ func promptExit() {
 				FP.Pages.SwitchToPage(FP.PrevPage)
 				return
 			}
+		},
+	).SetBackgroundColor(tcell.ColorGoldenrod).
+		SetTextColor(tcell.ColorBlack)
+
+	FP.Pages.SwitchToPage(PagePrompt)
+	FP.PromptBox.SetFocus(2)
+	FP.App.SetFocus(FP.PromptBox)
+}
+
+func promptExampleLoaded() {
+	// check if we are already prompting
+	currentPage, _ := FP.Pages.GetFrontPage()
+	if currentPage == PagePrompt {
+		return
+	}
+
+	// now check if the previous page is something other than the prompt already
+	FP.PrevPage, _ = FP.Pages.GetFrontPage()
+	if FP.PrevPage == PagePrompt {
+		return
+	}
+
+	FP.PromptBox.ClearButtons().AddButtons(
+		[]string{
+			FP.T["PromptExampleOK"],
+		},
+	).SetText(
+		strings.ReplaceAll(FP.T["PromptExampleLoaded"], "@@@", FP.FlagConfigFile),
+	).SetDoneFunc(
+		func(_ /* buttonIndex */ int, _ /* buttonLabel */ string) {
+			FP.Pages.SwitchToPage(FP.PrevPage)
 		},
 	).SetBackgroundColor(tcell.ColorGoldenrod).
 		SetTextColor(tcell.ColorBlack)

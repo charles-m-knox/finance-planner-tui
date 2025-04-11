@@ -12,7 +12,10 @@ This is a terminal user interface-based application (TUI).
 
 ## Installation
 
-Either visit the [Releases](https://github.com/charles-m-knox/finance-planner-tui/releases) page to download a precompiled binary, or alternatively, if you have Go installed you can just run `go install`:
+First, install Go - this varies based on your OS. Make sure your `$PATH`
+includes `go env | grep GOBIN`.
+
+Then, use `go install`:
 
 ```bash
 go install github.com/charles-m-knox/finance-planner-tui@latest
@@ -21,10 +24,13 @@ go install github.com/charles-m-knox/finance-planner-tui@latest
 Then just run
 
 ```bash
-finance-planner-tui
+finance-planner-tui config.yml
 ```
 
-Note that if you are running this e.g. inside a Docker container or a limited shell, your `TERM` environment variable may restrict the number of colors that Finance Planner TUI can use. Consider setting it to something like `TERM=tmux-256color`:
+Note that if you are running this e.g. inside a Docker container or a limited
+shell, your `TERM` environment variable may restrict the number of colors that
+Finance Planner TUI can use. Consider setting it to something like
+`TERM=tmux-256color`:
 
 ```bash
 TERM=tmux-256color finance-planner-tui
@@ -33,14 +39,17 @@ TERM=tmux-256color finance-planner-tui
 ## Features
 
 - uses a simple `yml` configuration format for files
-- minimal resource usage footprint (measured around 10-20MB memory usage on Linux)
+- minimal resource usage footprint (measured around 10-20MB memory usage on
+  Linux)
 - sensible default keybindings
-- translation support (currently only `en_US.UTF-8` implemented but other languages can create new files under `translations/*.yml`)
+- translation support (currently only `en_US.UTF-8` implemented but other
+  languages can create new files under `translations/*.yml`)
 - custom color support
 
 ## Usage & information
 
-The following sections are basically just copy/pasted from the Help (F1 or `?`) page in the application itself. It is better to view it there.
+The following sections are basically just copy/pasted from the Help (F1 or `?`)
+page in the application itself. It is better to view it there.
 
 ### Profiles
 
@@ -107,7 +116,9 @@ your finances.
 
 ## Keybindings
 
-Press F1 while in the application or `?` and use the up/down keys to view the keybindings that are activated & defaults. Note that F1 and `?` keybindings can be changed.
+Press F1 while in the application or `?` and use the up/down keys to view the
+keybindings that are activated & defaults. Note that F1 and `?` keybindings can
+be changed.
 
 ## Wish/todo/broken list
 
@@ -116,18 +127,20 @@ Press F1 while in the application or `?` and use the up/down keys to view the ke
 - weekday sorting only sorts for Monday
 - when hitting Enter on a row, if there are other things selected, also select this row
 - change all refs to c.Reset to tcell.ColorReset
-- debug config.yml loading errors
-- create xdg config dir when loading configs
-- finish translations into english
-- allow disabling mouse support so that things can be copied (config propery, or even through a shortcut?)
+- allow disabling mouse support so that things can be copied (config property,
+  or even through a shortcut?)
 - `ctrl+F` and `/` for search
-- Home and End keys should navigate to the top left & bottom right columns when already at the leftmost column/row
-- write debug logs to xdg cache dir
+- Home and End keys should navigate to the top left & bottom right columns when
+  already at the leftmost column/row
 - remind users that the Tab key is used for navigating through the results form
 - update help file to show actual keybindings
 - fix issue on mac with showing black on black in results page
 
 ## Warnings/disclaimers
 
-- The stability of this software is increasing as time goes on, but you should make reasonable efforts to double check the output of this program.
-- As with many of my personal projects, the code in this project contains a lot of experimental approaches to writing software that I might not otherwise have taken in a professional/serious environment. Please do not judge it in that regard.
+- The stability of this software is increasing as time goes on, but you should
+  make reasonable efforts to double check the output of this program.
+- As with many of my personal projects, the code in this project contains a lot
+  of experimental approaches to writing software that I might not otherwise have
+  taken in a professional/serious environment. Please do not judge it in that
+  regard.

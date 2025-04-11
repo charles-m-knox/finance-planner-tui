@@ -593,7 +593,7 @@ func getTransactionsTable() {
 
 	setTransactionsTableHeaders(FP.TransactionsTableHeaders, currentSort, sortGlyph)
 
-	FP.TransactionsTable.SetTitle(FP.T["TransactionsTableTitle"])
+	FP.TransactionsTable.SetTitle(fmt.Sprintf("%v: %v", FP.T["TransactionsTableTitle"], FP.FlagConfigFile))
 	FP.TransactionsTable.SetBorders(false).
 		SetSelectable(true, true).
 		SetSeparator(' ')

@@ -3,7 +3,6 @@ module github.com/charles-m-knox/finance-planner-tui
 go 1.24.2
 
 require (
-	github.com/adrg/xdg v0.5.3
 	github.com/charles-m-knox/finance-planner-lib v0.0.1
 	github.com/charles-m-knox/go-uuid v0.0.2
 	github.com/gdamore/tcell/v2 v2.8.1

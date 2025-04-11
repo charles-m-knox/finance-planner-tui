@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 
 	lib "github.com/charles-m-knox/finance-planner-lib"
 	"github.com/charles-m-knox/go-uuid"
 
-	"github.com/adrg/xdg"
 	"gopkg.in/yaml.v3"
 )
 
@@ -56,6 +54,7 @@ func loadConfFromEmbed(file string, emb embed.FS, t map[string]string) (Config, 
 	return conf, file, nil
 }
 
+// fileExists simply checks if a file exists. Nothing too fancy.
 func fileExists(name string) (bool, error) {
 	_, err := os.Stat(name)
 	if err == nil {
@@ -69,21 +68,14 @@ func fileExists(name string) (bool, error) {
 	return false, err
 }
 
-// Attempts to load from the "file" path provided - if not successful,
-// attempts to load from xdg config, then xdg home.
-//
-// The first return value is the populated config, if one was found and parsed.
-// The second return value is a string that indicates the properly loaded path
-// that successfully loaded the config (if it didn't succeed, it will be an
-// empty string). The third return value is an error, if present.
-//
-// You should set the global configFile variable to match the returned string
-// value so that other logic can use it.
+// Attempts to load from the "file" path provided. If unsuccessful, an example
+// file will be loaded, and the second argument will be true.
 //
 // The "t" parameter is the map of translations.
-func loadConfig(file string, t map[string]string, exampleConf embed.FS) (Config, string, error) {
+func loadConfig(file string, t map[string]string, exampleConf embed.FS) (Config, bool, error) {
 	if file == "" {
-		file = DefaultConfig
+		fmt.Println(t["ConfigNoFileSpecified"])
+		os.Exit(1)
 	}
 
 	var err error
@@ -92,70 +84,27 @@ func loadConfig(file string, t map[string]string, exampleConf embed.FS) (Config,
 
 	var conf Config
 
-	// create the XDG config dir for this application once upon startup
-	xdgConfigDir := path.Join(xdg.ConfigHome, DefaultConfigParentDir)
-
-	err = os.MkdirAll(xdgConfigDir, 0o755)
-	if err != nil {
-		return conf, file, fmt.Errorf("failed to make all directories %v: %w ", xdgConfigDir, err)
-	}
-
 	exists, err = fileExists(file)
 	if err != nil {
-		return conf, file, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
+		return conf, false, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
 	}
 
 	if exists {
 		conf, file, err = loadConfFrom(file, t)
 		if err != nil {
-			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
+			return conf, false, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
 		}
 
-		return conf, file, nil
+		return conf, false, nil
 	}
 
-	xdgConfig := path.Join(xdgConfigDir, DefaultConfig)
-
-	exists, err = fileExists(xdgConfig)
-	if err != nil {
-		return conf, file, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
-	}
-
-	if exists {
-		conf, file, err = loadConfFrom(xdgConfig, t)
-		if err != nil {
-			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
-		}
-
-		return conf, file, nil
-	}
-
-	xdgHome := path.Join(xdg.Home, DefaultConfigParentDir, DefaultConfig)
-
-	exists, err = fileExists(xdgHome)
-	if err != nil {
-		return conf, file, fmt.Errorf("failed to check if file %v exists: %w ", file, err)
-	}
-
-	if exists {
-		conf, file, err = loadConfFrom(xdgConfig, t)
-		if err != nil {
-			return conf, file, fmt.Errorf("failed to load config from existing config file %v: %w ", file, err)
-		}
-
-		return conf, file, nil
-	}
-
-	// if the config file doesn't exist, create it at xdgConfig with the
-	// example config (note: this doesn't *write* to the xdgConfig path,
-	// but instead sets the target config write path there so that it will
-	// be saved there)
+	// if it doesn't exist, use an example
 	conf, file, err = loadConfFromEmbed("example.yml", exampleConf, t)
 	if err != nil {
-		return conf, file, fmt.Errorf("failed to load config from template config %v: %w ", file, err)
+		return conf, false, fmt.Errorf("failed to load config from template config %v: %w ", file, err)
 	}
 
-	return conf, xdgConfig, err
+	return conf, true, err
 }
 
 // processConfig applies any post-load configuration parameters/logic to ensure
@@ -166,7 +115,7 @@ func processConfig(conf *Config) {
 	}
 
 	// ensure that every transaction has its weekdays map properly populated
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		for j := range conf.Profiles {
 			for k := range conf.Profiles[j].TX {
 				_, ok := conf.Profiles[j].TX[k].Weekdays[i]

@@ -196,6 +196,11 @@ type FinancePlanner struct {
 	// All of the columns that will be shown in the transactions table. Loaded
 	// once at runtime with values from translation table.
 	TransactionsTableHeaders []TableCell
+
+	// If the user specifies a file that doesn't exist yet, this will be true,
+	// and an example will be loaded. This is primarily used to show a prompt
+	// that informs the user of this.
+	ExampleLoaded bool
 }
 
 // FP contains all shared data in a global. Avoid using globals where possible,
@@ -299,6 +304,10 @@ func bootstrap(t map[string]string, conf Config) {
 
 	promptKBMode(t)
 
+	if FP.ExampleLoaded {
+		promptExampleLoaded()
+	}
+
 	FP.App.SetInputCapture(capture)
 }
 
@@ -339,7 +348,7 @@ func main() {
 		JSONtoYAML()
 	}
 
-	FP.Config, FP.FlagConfigFile, err = loadConfig(FP.FlagConfigFile, FP.T, ExampleConfig)
+	FP.Config, FP.ExampleLoaded, err = loadConfig(FP.FlagConfigFile, FP.T, ExampleConfig)
 	if err != nil {
 		log.Fatalf("%v: %v", FP.T["ErrorFailedToLoadConfig"], err.Error())
 	}
