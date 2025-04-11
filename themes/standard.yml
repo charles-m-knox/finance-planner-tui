@@ -27,7 +27,7 @@ TransactionsColumnEnds: "[#aaffee]"
 TransactionsColumnNote: "[white]"
 TransactionsColumnID: "[gray]"
 TransactionsColumnCreatedAt: "[blue]"
-TransactionsColumnUpdatedAT: "[blue]"
+TransactionsColumnUpdatedAt: "[blue]"
 
 TransactionsColumnInactive: "[gray::i]"
 
@@ -40,7 +40,7 @@ TransactionsRowSelectedColor: "#323232"
 TransactionsRowLastSelectedColor: "#1e1e1e"
 TransactionsRowSelectedAndLastSelectedColor: "#464646"
 
-# note: these two are tcell.ColorNames[] values, do not
+# note: these are tcell.ColorNames[] values, do not
 # surround with brackets
 TransactionsInputFieldBlurredBackground: "black"
 TransactionsInputFieldFocusedBackground: "dimgray"

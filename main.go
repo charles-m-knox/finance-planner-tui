@@ -307,9 +307,16 @@ func parseFlags(t map[string]string) {
 	flag.StringVar(&FP.FlagConfigFile, t["FlagConfigFileFlag"], "", t["FlagConfigFileDesc"])
 	flag.BoolVar(&FP.FlagShouldMigrate, t["FlagShouldMigrateFlag"], false, t["FlagShouldMigrateDesc"])
 	flag.BoolVar(&FP.FlagKeyboardEchoMode, t["FlagKeyboardEchoModeFlag"], false, t["FlagKeyboardEchoModeDesc"])
-	flag.StringVar(&FP.FlagTheme, t["FlagThemeFlag"], "", t[" FlagThemeDesc"])
+	flag.StringVar(&FP.FlagTheme, t["FlagThemeFlag"], "", t["FlagThemeDesc"])
 	flag.BoolVar(&FP.FlagShowVersion, t["FlagShowVersionFlag"], false, t["FlagShowVersionFlagDesc"])
+	flag.BoolVar(&FP.FlagShowVersion, t["FlagShowVersionFlagFull"], false, t["FlagShowVersionFlagDesc"])
 	flag.Parse()
+
+	// if the first positional argument to the program is provided, it will
+	// take precedence over the -f flag
+	if len(os.Args) > 1 && os.Args[1] != "" {
+		FP.FlagConfigFile = os.Args[1]
+	}
 }
 
 func main() {

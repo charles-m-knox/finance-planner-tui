@@ -754,7 +754,7 @@ profiles:
         - amount: -1000
           active: true
           name: Eat m/w/f
-          note: food budget of $10/day - i have to eat!
+          note: food budget of $10/day
           rrule: ""
           frequency: WEEKLY
           interval: 1
@@ -829,7 +829,7 @@ profiles:
         - amount: 2000
           active: true
           name: birthday gift
-          note: i get some gifts for my birthday every year!
+          note: ""
           rrule: ""
           frequency: YEARLY
           interval: 1
@@ -904,7 +904,7 @@ profiles:
         - amount: -20000
           active: true
           name: holiday gift giving
-          note: every holiday, i have to budget for friends & family!
+          note: every holiday, i have to budget for friends & family
           rrule: ""
           frequency: YEARLY
           interval: 1

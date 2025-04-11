@@ -1,11 +1,9 @@
 .PHONY=build
 
 BUILDDIR=build
-# make sure to update constants.go's version here too
-VER=0.1.1
+VER=0.1.2
 FILE=finance-planner-tui
 BIN=$(BUILDDIR)/$(FILE)-v$(VER)
-OUT_BIN_DIR=~/.local/bin
 UNAME=$(shell go env GOOS)
 ARCH=$(shell go env GOARCH)
 BUILD_ENV=CGO_ENABLED=0
@@ -27,8 +25,7 @@ lint:
 	golangci-lint run ./...
 
 install:
-	rsync -avP ./$(BIN)-$(UNAME)-$(ARCH) $(OUT_BIN_DIR)/$(FILE)
-	chmod +x $(OUT_BIN_DIR)/$(FILE)
+	$(BUILD_ENV) go install $(BUILD_FLAGS) .
 
 compress-prod: mkbuilddir
 	rm -f $(BIN)-compressed
@@ -71,3 +68,6 @@ build-all: mkbuilddir build-linux-amd64 build-linux-arm64 build-win-amd64 build-
 
 delete-builds:
 	rm $(BUILDDIR)/*
+
+clean-uncompressed:
+	gio trash $(BUILDDIR)/*-uncompressed

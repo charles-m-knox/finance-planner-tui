@@ -125,7 +125,6 @@ Press F1 while in the application or `?` and use the up/down keys to view the ke
 - write debug logs to xdg cache dir
 - remind users that the Tab key is used for navigating through the results form
 - update help file to show actual keybindings
-- customize colors (later!)
 - fix issue on mac with showing black on black in results page
 
 ## Warnings/disclaimers

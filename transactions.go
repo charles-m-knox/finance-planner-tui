@@ -554,7 +554,7 @@ func setTransactionsTableHeaders(th []TableCell, currentSort, sortGlyph string) 
 func setTransactionsTableCellsForTransaction(i int, tx lib.TX, isLastSelection bool) {
 	td := getTransactionsTableCell(tx)
 
-	bg := tcell.ColorReset
+	bg := tcell.ColorBlack
 
 	// needs to be this exact if-elseif chain because a switch statement won't
 	// reasonably suffice

@@ -2,16 +2,30 @@
 CheckedGlyph: "✔"
 UncheckedGlyph: " "
 
-FlagConfigFileDesc: the file to load from and save to
+FlagConfigFileDesc: |
+  the file to read and write to. Alternatively, the first positional argument to
+  this program can be provided. For example, ./finance-planner-tui /path/to/file
+  can be used. If this flag and a positional argument are both supplied, the
+  positional argument takes precedence.
 FlagConfigFileFlag: f
-FlagShouldMigrateDesc: whether or not to migrate a file named conf.json in the current directory from a previous config version to the latest version and save it as migrated.yml
+FlagShouldMigrateDesc: |
+  whether or not to migrate a file named conf.json in the current directory from
+  a previous config version to the latest version and save it as migrated.yml
 FlagShouldMigrateFlag: migrate
-FlagKeyboardEchoModeDesc: if true, all keyboard inputs except escape and ctrl+c will be echoed to the bottom left text field of the page. Use this mode to test your preferred keyboard mappings - take the exact text and put it into your keybindings configuration.
+FlagKeyboardEchoModeDesc: |
+  if true, all keyboard inputs except escape and ctrl+c will be echoed to the
+  bottom left text field of the page. Use this mode to test your preferred
+  keyboard mappings - take the exact text and put it into your keybindings
+  configuration.
 FlagKeyboardEchoModeFlag: kb
-FlagThemeDesc: the name of the theme to use, found under themes/*.yml when compiled; if the file extension ends in yaml or yml, it will load the theme at runtime instead
+FlagThemeDesc: |
+  the name of the theme to use, found under themes/*.yml when compiled; if the
+  file extension ends in yaml or yml, it will load the theme at runtime instead
 FlagThemeFlag: t
 FlagShowVersionFlagDesc: shows the version of the application
 FlagShowVersionFlag: v
+FlagShowVersionFlagFull: version
+
 DefaultNewProfileName: "New Profile Name"
 BottomPageNavTextHelp: "help"
 BottomPageNavTextProfiles: "profiles & transactions"
@@ -40,7 +54,7 @@ ConfigFailedToUnmarshalConfig: failed to unmarshal config from
 ConfigFailedToUnmarshalEmbeddedConfig: failed to unmarshal embedded config from
 
 ProfilesPageTitle: Profiles
-ProfilesPageProfileOpenMarker: "(open)"
+ProfilesPageProfileOpenMarker: "="
 ProfilesPageStatusTextNoChanges: no changes
 ProfilesPageInputFieldAppearsHere: editor appears here when editing
 ResultsTableStatusCalculatingPleaseWait: "calculating results, please wait..."

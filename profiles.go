@@ -17,7 +17,7 @@ func setStatusNoChanges() {
 
 func getActiveProfileText(profile Profile) string {
 	if FP.SelectedProfile != nil && FP.SelectedProfile.Name == profile.Name {
-		return fmt.Sprintf("[white::bu]%v %v%v", profile.Name, FP.T["ProfilesPageProfileOpenMarker"], Reset)
+		return fmt.Sprintf("[white::bu]%v%v%v", FP.T["ProfilesPageProfileOpenMarker"], profile.Name, Reset)
 	}
 
 	return profile.Name
@@ -78,6 +78,12 @@ func getProfilesPage() *tview.Flex {
 		FP.T["ProfilesPageInputFieldAppearsHere"],
 		Reset,
 	))
+
+	FP.TransactionsTable.SetSelectedStyle(
+		tcell.StyleDefault.Background(
+			tcell.ColorWhite,
+		).Foreground(tcell.ColorBlack),
+	)
 
 	FP.TransactionsSortMap = getTransactionsSortMap()
 
