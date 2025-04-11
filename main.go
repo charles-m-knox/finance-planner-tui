@@ -339,7 +339,6 @@ func main() {
 	parseFlags(FP.T)
 
 	if FP.FlagShowVersion {
-		//nolint:forbidigo
 		fmt.Println(version)
 		os.Exit(0)
 	}
