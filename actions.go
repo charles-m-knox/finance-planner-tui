@@ -266,7 +266,7 @@ func actionDelete(e *tcell.EventKey) *tcell.EventKey {
 				}
 			}
 
-			getTransactionsTable()
+			modified()
 			FP.TransactionsTable.Select(cr, cc)
 			FP.App.SetFocus(FP.TransactionsTable)
 		case FP.ProfileList:

@@ -1,7 +1,7 @@
 .PHONY=build
 
 BUILDDIR=build
-VER=0.1.2
+VER=0.1.3
 FILE=finance-planner-tui
 BIN=$(BUILDDIR)/$(FILE)-v$(VER)
 UNAME=$(shell go env GOOS)
