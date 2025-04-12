@@ -87,6 +87,8 @@ UndoBufferConfigCompressionError: failed to compress config before adding to und
 UndoBufferConfigDecompressionError: failed to decompress the previously stored config from undo buffer
 
 TransactionsInputFieldPlaceholderLabel: editor appears here when editing
+TransactionsInputFieldAddNewLabel: "new name"
+TransactionsInputFieldAddNewExampleValue: "New"
 TransactionsInputFieldEditAmountLabel: "amount (start with + or $+ for positive)"
 TransactionsInputFieldEditNameLabel: edit name
 TransactionsInputFieldEditNoteLabel: edit note

@@ -359,85 +359,97 @@ func actionAdd(e *tcell.EventKey, duplicating bool) *tcell.EventKey {
 
 			FP.LastSelection = -1
 
-			if !duplicating {
-				// largestOrderHolder := []lib.TX{}
-				// largestOrderHolder = append(largestOrderHolder, FP.SelectedProfile.TX...)
-				// largestOrderHolder = append(largestOrderHolder, nt...)
-				newTX := lib.GetNewTX(time.Now())
-				// newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
-				nt = append(nt, newTX)
-			} else {
-				// iterate through the list once to find how many selected
-				// items there are
-				numSelected := 0
+			onNameInput := func(_ int, name string) bool {
+				if !duplicating {
+					// largestOrderHolder := []lib.TX{}
+					// largestOrderHolder = append(largestOrderHolder, FP.SelectedProfile.TX...)
+					// largestOrderHolder = append(largestOrderHolder, nt...)
+					newTX := lib.GetNewTX(time.Now())
+					newTX.Name = name
+					// newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
+					nt = append(nt, newTX)
+				} else {
+					// iterate through the list once to find how many selected
+					// items there are
+					numSelected := 0
 
-				for i := range FP.SelectedProfile.TX {
-					if FP.SelectedProfile.TX[i].Selected {
-						numSelected++
+					for i := range FP.SelectedProfile.TX {
+						if FP.SelectedProfile.TX[i].Selected {
+							numSelected++
 
-						// we only care about knowing whether or not there
-						// is more than 1 item selected
-						if numSelected > 1 {
-							break
+							// we only care about knowing whether or not there
+							// is more than 1 item selected
+							if numSelected > 1 {
+								break
+							}
+						}
+					}
+
+					now := time.Now()
+
+					for i := range FP.SelectedProfile.TX {
+						isHighlightedRow := i == actual && numSelected <= 1
+
+						isSelectedDuplicationCandidate := FP.SelectedProfile.TX[i].Selected && duplicating
+						if isHighlightedRow || isSelectedDuplicationCandidate {
+							// keep track of the highest order in a temporary
+							// slice
+							// largestOrderHolder := []lib.TX{}
+							// largestOrderHolder = append(largestOrderHolder, FP.SelectedProfile.TX...)
+							// largestOrderHolder = append(largestOrderHolder, nt...)
+							newTX := lib.GetNewTX(now)
+							// newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
+
+							newTX.Amount = FP.SelectedProfile.TX[i].Amount
+							newTX.Active = FP.SelectedProfile.TX[i].Active
+							newTX.Name = FP.SelectedProfile.TX[i].Name
+							newTX.Note = FP.SelectedProfile.TX[i].Note
+							newTX.RRule = FP.SelectedProfile.TX[i].RRule
+							newTX.Frequency = FP.SelectedProfile.TX[i].Frequency
+							newTX.Interval = FP.SelectedProfile.TX[i].Interval
+							newTX.Weekdays = FP.SelectedProfile.TX[i].Weekdays
+							newTX.StartsDay = FP.SelectedProfile.TX[i].StartsDay
+							newTX.StartsMonth = FP.SelectedProfile.TX[i].StartsMonth
+							newTX.StartsYear = FP.SelectedProfile.TX[i].StartsYear
+							newTX.EndsDay = FP.SelectedProfile.TX[i].EndsDay
+							newTX.EndsMonth = FP.SelectedProfile.TX[i].EndsMonth
+							newTX.EndsYear = FP.SelectedProfile.TX[i].EndsYear
+
+							nt = append(nt, newTX)
 						}
 					}
 				}
 
-				now := time.Now()
-
-				for i := range FP.SelectedProfile.TX {
-					isHighlightedRow := i == actual && numSelected <= 1
-
-					isSelectedDuplicationCandidate := FP.SelectedProfile.TX[i].Selected && duplicating
-					if isHighlightedRow || isSelectedDuplicationCandidate {
-						// keep track of the highest order in a temporary
-						// slice
-						// largestOrderHolder := []lib.TX{}
-						// largestOrderHolder = append(largestOrderHolder, FP.SelectedProfile.TX...)
-						// largestOrderHolder = append(largestOrderHolder, nt...)
-						newTX := lib.GetNewTX(now)
-						// newTX.Order = lib.GetLargestOrder(largestOrderHolder) + 1
-
-						newTX.Amount = FP.SelectedProfile.TX[i].Amount
-						newTX.Active = FP.SelectedProfile.TX[i].Active
-						newTX.Name = FP.SelectedProfile.TX[i].Name
-						newTX.Note = FP.SelectedProfile.TX[i].Note
-						newTX.RRule = FP.SelectedProfile.TX[i].RRule
-						newTX.Frequency = FP.SelectedProfile.TX[i].Frequency
-						newTX.Interval = FP.SelectedProfile.TX[i].Interval
-						newTX.Weekdays = FP.SelectedProfile.TX[i].Weekdays
-						newTX.StartsDay = FP.SelectedProfile.TX[i].StartsDay
-						newTX.StartsMonth = FP.SelectedProfile.TX[i].StartsMonth
-						newTX.StartsYear = FP.SelectedProfile.TX[i].StartsYear
-						newTX.EndsDay = FP.SelectedProfile.TX[i].EndsDay
-						newTX.EndsMonth = FP.SelectedProfile.TX[i].EndsMonth
-						newTX.EndsYear = FP.SelectedProfile.TX[i].EndsYear
-
-						nt = append(nt, newTX)
+				if len(nt) > 0 {
+					// handles the case of adding/duplicating when the cursor
+					// is on the headers row
+					if actual < 0 {
+						actual = 0
 					}
+
+					if len(FP.SelectedProfile.TX) == 0 || actual > len(FP.SelectedProfile.TX)-1 {
+						FP.SelectedProfile.TX = append(FP.SelectedProfile.TX, nt...)
+					} else {
+						FP.SelectedProfile.TX = slices.Insert(FP.SelectedProfile.TX, actual, nt...)
+					}
+
+					modified()
+					getTransactionsTable()
+					FP.TransactionsTable.Select(cr, cc)
+					FP.App.SetFocus(FP.TransactionsTable)
 				}
+
+				return true
 			}
 
-			if len(nt) > 0 {
-				// handles the case of adding/duplicating when the cursor
-				// is on the headers row
-				if actual < 0 {
-					actual = 0
-				}
+			FP.TransactionsInputField.SetDoneFunc(txChangeDoneFunc(actual, onNameInput))
 
-				if len(FP.SelectedProfile.TX) == 0 || actual > len(FP.SelectedProfile.TX)-1 {
-					FP.SelectedProfile.TX = append(FP.SelectedProfile.TX, nt...)
-				} else {
-					FP.SelectedProfile.TX = slices.Insert(FP.SelectedProfile.TX, actual, nt...)
-				}
+			activateTransactionsInputField(
+				fmt.Sprintf("%v:", FP.T["TransactionsInputFieldAddNewLabel"]),
+				FP.T["TransactionsInputFieldAddNewExampleValue"],
+			)
 
-				modified()
-				getTransactionsTable()
-				FP.TransactionsTable.Select(cr, cc)
-				FP.App.SetFocus(FP.TransactionsTable)
-			}
-
-			return e
+			return nil
 		case FP.ProfileList:
 			// add/duplicate new profile
 			FP.TransactionsInputField.SetDoneFunc(func(key tcell.Key) {

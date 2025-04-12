@@ -825,7 +825,7 @@ func txChangeFrequency(i int) {
 }
 
 // See txChangeDoneFunc.
-type TxChangeDoneFunc func(i int, newVal string, key tcell.Key) bool
+// type TxChangeDoneFunc func(i int, newVal string, key tcell.Key) bool
 
 // txChangeDoneFunc is a generalized function. When the user is finished
 // entering data into the transactions input field, only four keys are supported
