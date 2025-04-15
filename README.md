@@ -1,6 +1,7 @@
 # finance-planner-tui
 
-Define recurring bills & income, and get a fairly accurate prediction of where your finances will be in the future.
+Define recurring bills & income, and get a fairly accurate prediction of where
+your finances will be in the future.
 
 This is a terminal user interface-based application (TUI).
 
@@ -18,7 +19,7 @@ includes `go env | grep GOBIN`.
 Then, use `go install`:
 
 ```bash
-go install github.com/charles-m-knox/finance-planner-tui@latest
+CGO_ENABLED=0 go install -ldflags="-w -s -buildid= -X main.version=0.1.3" -trimpath github.com/charles-m-knox/finance-planner-tui@latest
 ```
 
 Then just run
@@ -75,8 +76,8 @@ A transaction is a recurring expense or income:
 Each transaction has the following fields:
 
 - **Amount**: This is a positive or negative value as described above.
-- **Active**: This is a boolean value that determines whether the transaction should
-  be included in calculations. This is useful for temporarily making
+- **Active**: This is a boolean value that determines whether the transaction
+  should be included in calculations. This is useful for temporarily making
   changes without destroying anything.
 - **Name**: This is the human-readable name of the transaction for your eyes.
 - **Frequency**: Transactions can occur MONTHLY, WEEKLY, or YEARLY.
@@ -86,8 +87,8 @@ Each transaction has the following fields:
 - `<Weekday>`: The transaction only occurs on the checked days of the week, and
   will not occur if the defined recurrence pattern does not land on
   one of these days.
-- **Starts**: This is the starting date for the transaction's recurrence pattern.
-  It is defined as YYYY-MM-DD.
+- **Starts**: This is the starting date for the transaction's recurrence
+  pattern. It is defined as YYYY-MM-DD.
 
   For simplicity when working with dates at the end of the month,
   you may want to consider putting setting the day value to 28, as

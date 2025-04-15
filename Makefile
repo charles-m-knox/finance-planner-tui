@@ -1,6 +1,7 @@
 .PHONY=build
 
 BUILDDIR=build
+# update this in the README's install instructions too:
 VER=0.1.3
 FILE=finance-planner-tui
 BIN=$(BUILDDIR)/$(FILE)-v$(VER)
